@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Tokens semânticos — as classes abaixo e src/lib/tema.js são as únicas fontes de cor. */
+:root {
+  color-scheme: light;
+  --cor-fundo: #f6f7f9;
+  --cor-tinta: #0f172a;
+}
+body { background: var(--cor-fundo); color: var(--cor-tinta); }
+
+@layer components {
+  .card { @apply bg-white border border-slate-200 rounded-xl; }
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50; }
+  .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50; }
+  .input { @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100; }
+  .label { @apply block text-xs font-medium text-slate-500 mb-1; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap; }
+
+  /* Avisos inline: um único formato para sucesso/atenção/erro. */
+  .aviso { @apply rounded-lg border px-3 py-2 text-xs; }
+  .aviso-neutro { @apply border-slate-200 bg-slate-50 text-slate-600; }
+  .aviso-atencao { @apply border-amber-200 bg-amber-50 text-amber-800; }
+  .aviso-negativo { @apply border-rose-200 bg-rose-50 text-rose-800; }
+  .aviso-marca { @apply border-emerald-200 bg-emerald-50 text-emerald-800; }
+}
+
+/* Corpo de mensagem: respeita parágrafos e quebras de linha do WhatsApp. */
+.msg-corpo { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-corpo p + p { margin-top: 0.5rem; }
+.msg-corpo a { text-decoration: underline; text-underline-offset: 2px; }
+.msg-corpo code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; padding: 0 0.25em; border-radius: 0.25rem; background: rgba(0,0,0,0.06); }

@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Usuário do CRM (atendente / vendedor da farmácia)
+model User {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  cargo     String   @default("Atendente")
+  createdAt DateTime @default(now())
+
+  leads     Lead[]
+  orcamentos Orcamento[]
+  atividades Atividade[]
+}
+
+/// Lead = pessoa/empresa com potencial de compra
+model Lead {
+  id            String   @id @default(cuid())
+  nome          String
+  telefone      String?  @unique
+  email         String?
+  documento     String?
+  tipo          String   @default("PF")      // PF | PJ (clínica, consultório, convênio)
+  empresa       String?
+  origem        String   @default("MANUAL")  // WHATSAPP | INSTAGRAM | INDICACAO | BALCAO | SITE | MANUAL
+  etapa         String   @default("NOVO")    // NOVO | ORCAMENTO | APROVADO | PERDIDO
+  temperatura   String   @default("FRIO")    // QUENTE | MORNO | FRIO
+  score         Int      @default(0)
+  interesses    String   @default("")        // lista separada por vírgula (ex.: manipulados,dermocosméticos)
+  observacoes   String?
+  motivoPerda   String?
+  valorAprovado Float?                       // valor fechado ao aprovar na conversa (soma dos "Total" ou editado pelo atendente)
+  primeiroContatoEm DateTime @default(now())
+  ultimoContatoEm   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  responsavelId String?
+  responsavel   User?    @relation(fields: [responsavelId], references: [id])
+
+  conversas     Conversa[]
+  orcamentos    Orcamento[]
+  atividades    Atividade[]
+
+  @@index([etapa])
+  @@index([origem])
+}
+
+/// Conversa = thread de um canal (WhatsApp ou Instagram) com um contato
+model Conversa {
+  id            String   @id @default(cuid())
+  canal         String                        // WHATSAPP | INSTAGRAM
+  contatoExterno String                       // telefone E.164 ou @usuario do IG
+  nomeExibicao  String?
+  status        String   @default("ABERTA")   // ABERTA | AGUARDANDO | FECHADA
+  naoLidas      Int      @default(0)
+  ultimaMsgEm   DateTime @default(now())
+  /// última mensagem ENVIADA PELO CLIENTE — base da janela de 24h do WhatsApp
+  ultimaMsgClienteEm DateTime?
+  createdAt     DateTime @default(now())
+
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id])
+
+  mensagens     Mensagem[]
+
+  @@unique([canal, contatoExterno])
+  @@index([status])
+}
+
+model Mensagem {
+  id           String   @id @default(cuid())
+  conversaId   String
+  conversa     Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  direcao      String                        // ENTRADA | SAIDA
+  tipo         String   @default("TEXTO")    // TEXTO | IMAGEM | AUDIO | VIDEO | DOCUMENTO | FIGURINHA | LOCALIZACAO | CONTATO | INTERATIVA | TEMPLATE | OUTRO
+  texto        String                        // corpo ou legenda; para mídia sem legenda, descrição amigável
+  idExterno    String?  @unique
+  intencao     String?                       // COMPRA | ORCAMENTO | DUVIDA | RECLAMACAO | OUTRO
+  scoreIntencao Int     @default(0)
+  /// ENTRADA: RECEBIDA. SAIDA: ENVIANDO | ENVIADA | ENTREGUE | LIDA | FALHOU
+  status       String   @default("RECEBIDA")
+  erro         String?                       // motivo da falha de envio (texto legível para o atendente)
+  /// anexo: id no provedor, mime, nome original, tamanho e (quando houver) URL direta
+  midiaId      String?
+  midiaMime    String?
+  midiaNome    String?
+  midiaTamanho Int?
+  midiaUrl     String?
+  enviadoEm    DateTime @default(now())
+
+  @@index([conversaId])
+  @@index([status])
+}
+
+/// Todo POST recebido nos webhooks fica gravado: nada se perde, dá para auditar e reprocessar.
+model EventoWebhook {
+  id           String   @id @default(cuid())
+  canal        String                        // WHATSAPP | INSTAGRAM
+  provedor     String
+  payload      String                        // JSON bruto
+  status       String   @default("PENDENTE") // PENDENTE | OK | ERRO | IGNORADO
+  mensagens    Int      @default(0)          // quantas mensagens foram extraídas
+  erro         String?
+  tentativas   Int      @default(0)
+  recebidoEm   DateTime @default(now())
+  processadoEm DateTime?
+
+  @@index([status])
+  @@index([recebidoEm])
+}
+
+/// Catálogo simplificado de produtos da farmácia
+model Produto {
+  id        String  @id @default(cuid())
+  nome      String
+  categoria String  @default("Medicamento")  // Medicamento | Manipulado | Dermocosmético | Suplemento | Perfumaria
+  preco     Float
+  ativo     Boolean @default(true)
+
+  itens     ItemOrcamento[]
+}
+
+model Orcamento {
+  id            String   @id @default(cuid())
+  numero        Int      @unique
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status        String   @default("RASCUNHO") // RASCUNHO | ENVIADO | ACEITO | REJEITADO | EXPIRADO
+  desconto      Float    @default(0)
+  total         Float    @default(0)
+  validadeEm    DateTime?
+  enviadoEm     DateTime?
+  fechadoEm     DateTime?
+  motivoRejeicao String?                      // PRECO | PRAZO_ENTREGA | SEM_ESTOQUE | CONCORRENCIA | SEM_RESPOSTA | DESISTIU | CONVENIO | OUTRO
+  detalheRejeicao String?
+  concorrente   String?
+  precoConcorrente Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  responsavelId String?
+  responsavel   User?    @relation(fields: [responsavelId], references: [id])
+
+  itens         ItemOrcamento[]
+
+  @@index([status])
+  @@index([motivoRejeicao])
+}
+
+model ItemOrcamento {
+  id          String    @id @default(cuid())
+  orcamentoId String
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  produtoId   String?
+  produto     Produto?  @relation(fields: [produtoId], references: [id])
+  descricao   String
+  quantidade  Int       @default(1)
+  precoUnit   Float
+  subtotal    Float
+}
+
+model Atividade {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tipo      String                          // NOTA | LIGACAO | MENSAGEM | ETAPA | ORCAMENTO
+  descricao String
+  autorId   String?
+  autor     User?    @relation(fields: [autorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
