@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { brl } from "@/lib/constantes";
+import { formatarTelefone } from "@/lib/telefone";
 
 const linhaVazia = () => ({ key: Math.random().toString(36).slice(2), produtoId: "", descricao: "", quantidade: 1, precoUnit: 0 });
 
@@ -56,7 +57,7 @@ export default function FormOrcamento({ leads, produtos, leadPre }) {
             <select className="input" value={leadId} onChange={(e) => setLeadId(e.target.value)}>
               <option value="">Selecione o lead…</option>
               {leads.map((l) => (
-                <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` — ${l.telefone}` : ""}</option>
+                <option key={l.id} value={l.id}>{l.nome}{l.telefone ? ` — ${formatarTelefone(l.telefone)}` : ""}</option>
               ))}
             </select>
           </div>

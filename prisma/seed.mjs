@@ -1,12 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import { hashSenha } from "../src/lib/auth.js";
+import { paraBusca, buscaLead, buscaConversa } from "../src/lib/busca.js";
 
 const db = new PrismaClient();
 const diasAtras = (d, h = 10) => {
   const x = new Date();
   x.setDate(x.getDate() - d);
   x.setHours(h, Math.floor(Math.random() * 59), 0, 0);
-  return x;
-};
+  return x;};
 const horasAtras = (h) => new Date(Date.now() - h * 3600 * 1000);
 const sorteio = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -36,6 +37,25 @@ const LEADS = [
   { nome: "Sebastião Nunes", telefone: "5511987650008", origem: "BALCAO", tipo: "PF", interesses: "diabetes,insulina" },
   { nome: "Lar Bem Viver (ILPI)", telefone: "5511987650009", origem: "SITE", tipo: "PJ", empresa: "Lar Bem Viver", interesses: "fraldas,medicamento contínuo" },
   { nome: "Camila Toledo", telefone: "5511987650010", origem: "INSTAGRAM", tipo: "PF", interesses: "emagrecimento" },
+];
+
+/** Etiquetas, aniversário e convênio de alguns leads (aniversários perto de hoje para o painel ter o que mostrar). */
+const emDias = (d, anos) => { const x = new Date(); x.setDate(x.getDate() + d); x.setFullYear(x.getFullYear() - anos); x.setHours(12, 0, 0, 0); return x; };
+const EXTRAS = {
+  "5511987650001": { etiquetas: "recompra mensal,vip", dataNascimento: emDias(0, 52), convenio: "Unimed", consentimentoMarketing: true },
+  "5511987650002": { etiquetas: "pj,recorrente" },
+  "5511987650004": { etiquetas: "uso contínuo", dataNascimento: emDias(3, 67), convenio: "Farmácia Popular", consentimentoMarketing: true },
+  "5511987650007": { etiquetas: "vip", dataNascimento: emDias(5, 34) },
+  "5511987650008": { etiquetas: "uso contínuo,receita controlada", convenio: "Bradesco Saúde" },
+  "5511987650009": { etiquetas: "pj,recorrente" },
+};
+
+const MENSAGENS_RAPIDAS = [
+  ["pix", "Oi, {nome}! Nossa chave PIX é o CNPJ 12.345.678/0001-90 (Farmácia Exemplo). Assim que pagar, me manda o comprovante por aqui 😊"],
+  ["entrega", "Entregamos no mesmo dia para pedidos até as 16h, {nome}. A taxa é R$ 7,00 no bairro e grátis acima de R$ 150,00."],
+  ["receita", "Para esse medicamento precisamos da receita. Pode mandar uma foto legível dela aqui na conversa, {nome}?"],
+  ["horario", "Funcionamos de segunda a sábado, das 7h às 22h, e domingo das 8h às 14h."],
+  ["manipulado", "O manipulado fica pronto em até 48h úteis após a aprovação do orçamento. Avisamos por aqui quando estiver pronto!"],
 ];
 
 const CONVERSAS = [
@@ -86,10 +106,16 @@ async function main() {
   await db.atividade.deleteMany();
   await db.lead.deleteMany();
   await db.produto.deleteMany();
+  await db.auditoria.deleteMany();
+  await db.sessao.deleteMany();
   await db.user.deleteMany();
+  await db.mensagemRapida.deleteMany();
 
-  const ana = await db.user.create({ data: { nome: "Ana Vitória", email: "ana@farmacia.com.br", cargo: "Gerente comercial" } });
-  await db.user.create({ data: { nome: "Bruno Castro", email: "bruno@farmacia.com.br" } });
+  // senha de demonstração — só para o banco local; em produção use `npm run usuario:criar`
+  const SENHA_DEMO = "farmacia123";
+  const senhaHash = await hashSenha(SENHA_DEMO);
+  const ana = await db.user.create({ data: { nome: "Ana Vitória", email: "ana@farmacia.com.br", cargo: "Gerente comercial", papel: "GERENTE", senhaHash } });
+  await db.user.create({ data: { nome: "Bruno Castro", email: "bruno@farmacia.com.br", papel: "ATENDENTE", senhaHash } });
 
   const produtos = [];
   for (const [nome, categoria, preco] of PRODUTOS) {
@@ -101,9 +127,14 @@ async function main() {
     const criado = await db.lead.create({
       data: {
         ...l,
+        ...EXTRAS[l.telefone],
+        ...(EXTRAS[l.telefone]?.consentimentoMarketing ? { consentimentoEm: diasAtras(30) } : {}),
         interesses: l.interesses ?? "",
+        busca: buscaLead(l),
         responsavelId: ana.id,
         score: 20 + ((i * 13) % 70),
+        scoreBase: 20 + ((i * 13) % 70),
+        scoreEm: diasAtras(10 - (i % 9)),
         temperatura: i % 3 === 0 ? "QUENTE" : i % 3 === 1 ? "MORNO" : "FRIO",
         etapa: ["NOVO", "ORCAMENTO", "APROVADO", "NOVO", "ORCAMENTO", "PERDIDO"][i % 6],
         primeiroContatoEm: diasAtras(60 - i * 4),
@@ -157,6 +188,10 @@ async function main() {
         precoConcorrente: rj.desconto ? Math.round(total * rj.desconto * 100) / 100 : null,
       };
     } else if (i % 5 === 4 && i > 15) status = "RASCUNHO";
+    // os mais antigos que ninguém fechou já venceram (validade de 15 dias); os recentes seguem em aberto
+    if (status === "ENVIADO" && i < 10) status = "EXPIRADO";
+    const aberto = status === "RASCUNHO" || status === "ENVIADO";
+    const validadeEm = aberto ? diasAtras(-(3 + (i % 7)), 23) : diasAtras(60 - i * 3, 23);
 
     const orc = await db.orcamento.create({
       data: {
@@ -168,8 +203,8 @@ async function main() {
         total,
         createdAt: criadoEm,
         enviadoEm: status === "RASCUNHO" ? null : criadoEm,
-        fechadoEm: ["ACEITO", "REJEITADO"].includes(status) ? diasAtras(70 - i * 3, 15) : null,
-        validadeEm: diasAtras(60 - i * 3, 18),
+        fechadoEm: ["ACEITO", "REJEITADO"].includes(status) ? diasAtras(70 - i * 3, 15) : status === "EXPIRADO" ? validadeEm : null,
+        validadeEm,
         ...extra,
         itens: { create: itens },
       },
@@ -189,6 +224,8 @@ async function main() {
     });
   }
 
+  for (const [atalho, texto] of MENSAGENS_RAPIDAS) await db.mensagemRapida.create({ data: { atalho, texto } });
+
   // conversas e mensagens dos canais
   const quando = (q, direcao) => (typeof q === "object" ? horasAtras(q.horas) : diasAtras(q, direcao === "ENTRADA" ? 9 : 11));
   for (const c of CONVERSAS) {
@@ -199,8 +236,11 @@ async function main() {
         canal: c.canal,
         contatoExterno: c.contato,
         nomeExibicao: c.nome,
+        busca: buscaConversa({ nomeExibicao: c.nome, contatoExterno: c.contato }),
         leadId: lead?.id ?? null,
         naoLidas: c.msgs.at(-1)[0] === "ENTRADA" ? 1 : 0,
+        // João disse "vou pensar": atendimento encerrado (aparece na aba Fechadas)
+        status: c.contato === "5511987650003" ? "FECHADA" : c.msgs.at(-1)[0] === "SAIDA" ? "AGUARDANDO" : "ABERTA",
         ultimaMsgEm: quando(c.msgs.at(-1)[2], c.msgs.at(-1)[0]),
         ultimaMsgClienteEm: ultimaDoCliente ? quando(ultimaDoCliente[2], "ENTRADA") : null,
         createdAt: quando(c.msgs[0][2], c.msgs[0][0]),
@@ -212,6 +252,8 @@ async function main() {
           conversaId: conversa.id,
           direcao,
           texto,
+          textoBusca: paraBusca(texto),
+          autorId: direcao === "SAIDA" ? ana.id : null,
           tipo: extra.tipo ?? "TEXTO",
           status: extra.status ?? (direcao === "ENTRADA" ? "RECEBIDA" : "LIDA"),
           erro: extra.erro ?? null,
@@ -232,6 +274,7 @@ async function main() {
     db.orcamento.count({ where: { status: "REJEITADO" } }), db.mensagem.count(),
   ]);
   console.log(`Seed concluído: ${nLeads} leads · ${nOrc} orçamentos (${nRej} rejeitados) · ${nMsg} mensagens`);
+  console.log(`Login de demonstração: ana@farmacia.com.br (gerente) ou bruno@farmacia.com.br (atendente), senha "${SENHA_DEMO}"`);
 }
 
 main().finally(() => db.$disconnect());

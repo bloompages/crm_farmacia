@@ -5,26 +5,73 @@ import { dataHora, tempoRelativo, corEtapa, labelEtapa } from "@/lib/constantes"
 import { CANAL, TOM, chipFiltro } from "@/lib/tema";
 import { janela24h, rotuloRestante, aguardandoResposta, semRespostaHa24h, descreverMensagem, tipoVisual, nomeArquivo, extrairTotal, lerValorBR, formatarValorBR } from "@/lib/conversa";
 import CorpoMensagem from "./CorpoMensagem";
+import Etiquetas from "./Etiquetas";
+import { aplicarModelo, sugerir, termoDigitado } from "@/lib/mensagensRapidas";
 
 const INTERVALO_MS = 8000;
 const MAX_ESPERA_MS = 60000;
 
-const SITUACOES = [
-  { id: "TODAS", rotulo: "todas", filtro: () => true },
-  { id: "MAIS24H", rotulo: "sem resposta +24h", filtro: (c) => semRespostaHa24h(c) },
+const fechada = (c) => c.status === "FECHADA";
+
+/** Abas principais da lista (como em outros CRMs: Abertas · Sem resposta · Todas · Fechadas). */
+const ABAS = [
+  { id: "ABERTAS", rotulo: "Abertas", filtro: (c) => !fechada(c) },
+  { id: "SEM_RESPOSTA", rotulo: "Sem resposta", filtro: (c) => !fechada(c) && aguardandoResposta(c) },
+  { id: "TODAS", rotulo: "Todas", filtro: () => true },
+  { id: "FECHADAS", rotulo: "Fechadas", filtro: fechada },
 ];
 
-export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecionadaId, templateReabertura }) {
+/** Sinal de compra da última mensagem do cliente, em linguagem de balcão. */
+const ROTULO_INTENCAO = { ORCAMENTO: "pediu orçamento", COMPRA: "quer comprar", DUVIDA: "tem dúvida", RECLAMACAO: "reclamação" };
+
+/** Junta o lote novo às mensagens já carregadas (mantém as antigas de "carregar anteriores"). */
+const juntar = (atuais = [], novas = []) => {
+  const porId = new Map(atuais.map((m) => [m.id, m]));
+  for (const m of novas) porId.set(m.id, { ...porId.get(m.id), ...m });
+  return [...porId.values()].sort((a, b) => new Date(a.enviadoEm) - new Date(b.enviadoEm) || (a.id < b.id ? -1 : 1));
+};
+
+export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecionadaId, templateReabertura, usuarioId, mensagensRapidas = [], etiquetasEmUso = [] }) {
   const [conversas, setConversas] = useState(conversasIniciais);
   const [sinc, setSinc] = useState({ estado: "ok", ultimaEm: Date.now(), erro: null, proximaEm: null, info: sincronizacaoInicial });
   const [ativa, setAtiva] = useState(selecionadaId ?? conversasIniciais[0]?.id ?? null);
-  const [situacao, setSituacao] = useState("TODAS");
+  // conversa aberta por link (?c=) que já foi resolvida continua visível
+  const [aba, setAba] = useState(() => (fechada(conversasIniciais.find((c) => c.id === selecionadaId) ?? {}) ? "TODAS" : "ABERTAS"));
+  const [soMinhas, setSoMinhas] = useState(false);
+  const [soQuentes, setSoQuentes] = useState(false);
+  const [so24h, setSo24h] = useState(false);
   const [busca, setBusca] = useState("");
   const [agora, setAgora] = useState(Date.now());
+  // mensagens da conversa aberta: { [conversaId]: { mensagens, temMais, carregando } }
+  const [historico, setHistorico] = useState({});
   const falhasSeguidas = useRef(0);
   const timer = useRef(null);
+  const ativaRef = useRef(ativa);
+  ativaRef.current = ativa;
 
   const conversa = conversas.find((c) => c.id === ativa);
+  const hist = historico[ativa] ?? { mensagens: [], temMais: false, carregando: true };
+
+  /** Busca as mensagens mais recentes (ou as anteriores a `antes`) de uma conversa. */
+  const carregarMensagens = useCallback(async (id, antes) => {
+    if (!id) return;
+    const r = await fetch(`/api/conversas/${id}/mensagens${antes ? `?antes=${encodeURIComponent(antes)}` : ""}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`servidor respondeu ${r.status}`);
+    const json = await r.json();
+    setHistorico((h) => ({
+      ...h,
+      [id]: {
+        mensagens: juntar(h[id]?.mensagens, json.mensagens),
+        // "tem mais" só muda ao paginar para trás; o refresh da ponta não sabe das antigas
+        temMais: antes || !h[id] ? json.temMais : h[id].temMais,
+        carregando: false,
+      },
+    }));
+  }, []);
+
+  useEffect(() => {
+    carregarMensagens(ativa).catch(() => setHistorico((h) => ({ ...h, [ativa]: { ...(h[ativa] ?? { mensagens: [], temMais: false }), carregando: false } })));
+  }, [ativa, carregarMensagens]);
 
   /* ------------------------------------------------------------------ sincronização */
   const atualizar = useCallback(async () => {
@@ -34,6 +81,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
       if (!r.ok) throw new Error(`servidor respondeu ${r.status}`);
       const json = await r.json();
       setConversas(json.conversas);
+      await carregarMensagens(ativaRef.current); // status ✓✓ e novas mensagens da conversa aberta
       falhasSeguidas.current = 0;
       setSinc({ estado: "ok", ultimaEm: Date.now(), erro: null, proximaEm: null, info: json.sincronizacao });
       return true;
@@ -43,7 +91,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
       setSinc((s) => ({ ...s, estado: "erro", erro: e?.message ?? "sem conexão", proximaEm: Date.now() + espera }));
       return false;
     }
-  }, [busca]);
+  }, [busca, carregarMensagens]);
 
   // polling com backoff exponencial em caso de erro e pausa quando a aba está escondida
   useEffect(() => {
@@ -84,25 +132,36 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
   }, [conversa?.id, conversa?.naoLidas]);
 
   /* ------------------------------------------------------------------ lista filtrada */
-  const visiveis = useMemo(() => {
-    const sit = SITUACOES.find((s) => s.id === situacao) ?? SITUACOES[0];
-    return conversas.filter((c) => sit.filtro(c));
-  }, [conversas, situacao, agora]);
+  // filtros extras valem em qualquer aba; as contagens das abas já respeitam esses filtros
+  const base = useMemo(() => conversas.filter((c) =>
+    (!soMinhas || c.lead?.responsavel?.id === usuarioId) &&
+    (!soQuentes || c.lead?.temperatura === "QUENTE") &&
+    (!so24h || semRespostaHa24h(c, agora))
+  ), [conversas, soMinhas, soQuentes, so24h, usuarioId, agora]);
+
+  const visiveis = useMemo(() => base.filter((ABAS.find((a) => a.id === aba) ?? ABAS[0]).filtro), [base, aba]);
 
   const contagem = useMemo(() => ({
-    MAIS24H: conversas.filter((c) => semRespostaHa24h(c, agora)).length,
-  }), [conversas, agora]);
+    SEM_RESPOSTA: base.filter(ABAS[1].filtro).length,
+    MAIS24H: conversas.filter((c) => !fechada(c) && semRespostaHa24h(c, agora)).length,
+    QUENTES: conversas.filter((c) => !fechada(c) && c.lead?.temperatura === "QUENTE").length,
+  }), [base, conversas, agora]);
 
   function aoMudarLead(conversaId, lead) {
-    setConversas((lista) => lista.map((c) => (c.id === conversaId ? { ...c, lead: { ...c.lead, ...lead } } : c)));
+    // o mesmo lead pode ter conversa no WhatsApp e no Instagram
+    const leadId = conversas.find((c) => c.id === conversaId)?.leadId;
+    setConversas((lista) => lista.map((c) => (c.id === conversaId || (leadId && c.leadId === leadId) ? { ...c, lead: { ...c.lead, ...lead } } : c)));
+  }
+
+  function aoMudarStatus(conversaId, status) {
+    setConversas((lista) => lista.map((c) => (c.id === conversaId ? { ...c, status, ...(status === "FECHADA" ? { naoLidas: 0 } : {}) } : c)));
   }
 
   function aoEnviar(mensagem) {
-    setConversas((lista) => lista.map((c) => {
-      if (c.id !== mensagem.conversaId) return c;
-      const semEla = c.mensagens.filter((m) => m.id !== mensagem.id);
-      return { ...c, mensagens: [...semEla, mensagem], ultimaMsgEm: mensagem.enviadoEm, naoLidas: 0 };
-    }));
+    setConversas((lista) => lista.map((c) =>
+      c.id === mensagem.conversaId ? { ...c, mensagens: [mensagem], ultimaMsgEm: mensagem.enviadoEm, naoLidas: 0 } : c
+    ));
+    setHistorico((h) => ({ ...h, [mensagem.conversaId]: { ...h[mensagem.conversaId], mensagens: juntar(h[mensagem.conversaId]?.mensagens, [mensagem]) } }));
     atualizar();
   }
 
@@ -119,13 +178,29 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
-            <div className="flex flex-wrap gap-1">
-              {SITUACOES.map((s) => (
-                <button key={s.id} onClick={() => setSituacao(s.id)} className={`chip ${chipFiltro(situacao === s.id)}`}>
-                  {s.rotulo}
-                  {s.id === "MAIS24H" && contagem.MAIS24H > 0 && <b className="font-semibold text-rose-600">{contagem.MAIS24H}</b>}
+            <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-slate-100 p-0.5 text-xs">
+              {ABAS.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setAba(a.id)}
+                  className={`inline-flex items-center justify-center gap-1 rounded-md px-1 py-1 ${aba === a.id ? "bg-white font-medium text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  {a.rotulo}
+                  {a.id === "SEM_RESPOSTA" && contagem.SEM_RESPOSTA > 0 && (
+                    <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">{contagem.SEM_RESPOSTA}</span>
+                  )}
                 </button>
               ))}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => setSoMinhas((v) => !v)} className={`chip ${chipFiltro(soMinhas)}`}>só as minhas</button>
+              <button onClick={() => setSoQuentes((v) => !v)} className={`chip ${chipFiltro(soQuentes)}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />quentes <span className="opacity-60">{contagem.QUENTES}</span>
+              </button>
+              <button onClick={() => setSo24h((v) => !v)} className={`chip ${chipFiltro(so24h)}`}>
+                sem resposta +24h
+                {contagem.MAIS24H > 0 && <b className="font-semibold text-rose-600">{contagem.MAIS24H}</b>}
+              </button>
             </div>
           </div>
 
@@ -133,7 +208,9 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
             {visiveis.map((c) => {
               const ultima = c.mensagens.at(-1);
               const precisa = aguardandoResposta(c);
-              const vencida = semRespostaHa24h(c, agora);
+              const vencida = !fechada(c) && semRespostaHa24h(c, agora);
+              const sinal = ultima?.direcao === "ENTRADA" && ultima.scoreIntencao >= 25 ? ROTULO_INTENCAO[ultima.intencao] : null;
+              const etiquetas = (c.lead?.etiquetas ?? "").split(",").filter(Boolean);
               return (
                 <button
                   key={c.id}
@@ -152,6 +229,13 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
                     {ultima?.direcao === "SAIDA" && <span className="text-slate-400">Você: </span>}
                     {descreverMensagem(ultima)}
                   </p>
+                  {(sinal || etiquetas.length > 0 || fechada(c)) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {fechada(c) && <span className={`chip ${TOM.neutroClaro} py-0 text-[10px]`}>✓ resolvida</span>}
+                      {sinal && <span className={`chip ${TOM.atencao} py-0 text-[10px]`}>{sinal}</span>}
+                      {etiquetas.slice(0, 2).map((e) => <span key={e} className={`chip ${TOM.neutroClaro} py-0 text-[10px]`}># {e}</span>)}
+                    </div>
+                  )}
                   {vencida && (
                     <p className="mt-1 text-[11px] font-medium text-rose-600">sem resposta há {rotuloRestante(agora - new Date(c.ultimaMsgClienteEm).getTime())} · janela de 24h fechada</p>
                   )}
@@ -163,7 +247,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
             })}
             {visiveis.length === 0 && (
               <p className="p-4 text-sm text-slate-400">
-                {conversas.length === 0 ? <>Nenhuma conversa. Rode <code className="rounded bg-slate-100 px-1">npm run simular</code>.</> : "Nenhuma conversa neste filtro."}
+                {conversas.length === 0 ? <>Nenhuma conversa. Rode <code className="rounded bg-slate-100 px-1">npm run simular</code>.</> : aba === "ABERTAS" && !soMinhas && !soQuentes && !so24h ? "Nenhuma conversa aberta — tudo resolvido. 🎉" : "Nenhuma conversa neste filtro."}
               </p>
             )}
           </div>
@@ -176,10 +260,17 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
             <Conversa
               key={conversa.id}
               conversa={conversa}
+              mensagens={hist.mensagens}
+              temMais={hist.temMais}
+              carregando={hist.carregando}
+              aoCarregarAnteriores={() => carregarMensagens(conversa.id, hist.mensagens[0]?.id)}
               agora={agora}
               templateReabertura={templateReabertura}
               aoEnviar={aoEnviar}
               aoMudarLead={aoMudarLead}
+              aoMudarStatus={aoMudarStatus}
+              mensagensRapidas={mensagensRapidas}
+              etiquetasEmUso={etiquetasEmUso}
             />
           )}
         </section>
@@ -206,7 +297,7 @@ function BarraSincronizacao({ sinc, agora, aoAtualizar }) {
     }
   }
 
-  const problema = sinc.estado === "erro" || erros > 0 || falhas > 0;
+  const problema = sinc.estado === "erro" || erros > 0 || falhas > 0 || info.alertas?.length > 0;
   const tom = sinc.estado === "erro" ? "aviso-negativo" : problema ? "aviso-atencao" : "aviso-neutro";
   const ponto = sinc.estado === "erro" ? "bg-rose-500" : problema ? "bg-amber-500" : sinc.estado === "sincronizando" ? "bg-emerald-400 animate-pulse" : "bg-emerald-500";
 
@@ -230,6 +321,7 @@ function BarraSincronizacao({ sinc, agora, aoAtualizar }) {
         </span>
       )}
       {falhas > 0 && <span>· <b>{falhas}</b> resposta(s) não enviada(s) nas últimas 24h</span>}
+      {info.alertas?.map((t) => <span key={t}>· <b>configuração:</b> {t}</span>)}
       <span className="ml-auto flex gap-2">
         {erros > 0 && (
           <button onClick={reprocessar} disabled={reprocessando} className="font-medium underline decoration-current/40 hover:decoration-current">
@@ -244,7 +336,7 @@ function BarraSincronizacao({ sinc, agora, aoAtualizar }) {
 
 /* ====================================================================== */
 
-function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }) {
+function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnteriores, agora, templateReabertura, aoEnviar, aoMudarLead, aoMudarStatus, mensagensRapidas, etiquetasEmUso }) {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState(null);
@@ -254,11 +346,36 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
   const [editandoValor, setEditandoValor] = useState(false);
   const [rascunhoValor, setRascunhoValor] = useState("");
 
+  const [mudandoStatus, setMudandoStatus] = useState(false);
+  const [indiceSugestao, setIndiceSugestao] = useState(0);
   const etapaLead = conversa.lead?.etapa ?? null;
+
+  // "/pix" no começo do campo abre as mensagens rápidas
+  const termo = termoDigitado(texto);
+  const sugestoes = termo === null ? [] : sugerir(mensagensRapidas, termo);
+  useEffect(() => { setIndiceSugestao(0); }, [termo]);
+
+  function usarRapida(m) {
+    setTexto(aplicarModelo(m.texto, { nome: conversa.lead?.nome ?? conversa.nomeExibicao }));
+    areaRef.current?.focus();
+  }
+
+  async function mudarStatus(status) {
+    setMudandoStatus(true);
+    setErroEnvio(null);
+    const r = await fetch(`/api/conversas/${conversa.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).catch(() => null);
+    setMudandoStatus(false);
+    if (!r?.ok) return setErroEnvio("Não foi possível mudar o status da conversa. Tente de novo.");
+    aoMudarStatus(conversa.id, status);
+  }
   const jaAprovado = etapaLead === "APROVADO";
 
   // Valor do botão: 1) editado pelo atendente, 2) já gravado no lead, 3) soma das linhas "Total" da conversa
-  const total = useMemo(() => extrairTotal(conversa.mensagens), [conversa.mensagens]);
+  const total = useMemo(() => extrairTotal(mensagens), [mensagens]);
   const valorLead = conversa.lead?.valorAprovado ?? null;
   const valor = valorEditado ?? (jaAprovado && valorLead !== null ? valorLead : total.valor > 0 ? total.valor : valorLead);
   const temValor = valor !== null && valor !== undefined && valor > 0;
@@ -316,7 +433,9 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
   const janela = janela24h(conversa, agora);
   const whatsapp = conversa.canal === "WHATSAPP";
 
-  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth" }); }, [conversa.mensagens.length]);
+  // rola para o fim quando chega mensagem nova (não ao carregar as anteriores)
+  const ultimaId = mensagens.at(-1)?.id;
+  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth" }); }, [ultimaId]);
 
   // textarea cresce com o conteúdo (até ~8 linhas)
   useEffect(() => {
@@ -359,6 +478,20 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
   }
 
   function aoTeclar(e) {
+    if (sugestoes.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const passo = e.key === "ArrowDown" ? 1 : -1;
+        setIndiceSugestao((i) => (i + passo + sugestoes.length) % sugestoes.length);
+        return;
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey && !e.ctrlKey)) {
+        e.preventDefault();
+        usarRapida(sugestoes[indiceSugestao] ?? sugestoes[0]);
+        return;
+      }
+      if (e.key === "Escape") { setTexto(""); return; }
+    }
     // Enter envia; Shift+Enter (ou Ctrl+Enter) quebra linha — como no WhatsApp Web
     if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
       e.preventDefault();
@@ -372,6 +505,7 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
         <div className="min-w-0">
           <div className="truncate font-medium">{conversa.nomeExibicao}</div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            {fechada(conversa) && <span className={`chip ${TOM.neutro}`}>✓ resolvida</span>}
             <span className="inline-flex items-center gap-1">
               <span className={`h-1.5 w-1.5 rounded-full ${CANAL[conversa.canal].ponto}`} />
               {CANAL[conversa.canal].rotulo}
@@ -381,9 +515,28 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
             <span>·</span>
             <ChipJanela janela={janela} />
           </div>
+          {conversa.leadId && (
+            <div className="mt-1.5">
+              <Etiquetas
+                leadId={conversa.leadId}
+                etiquetas={conversa.lead?.etiquetas ?? ""}
+                sugestoes={etiquetasEmUso}
+                aoMudar={(etiquetas) => aoMudarLead(conversa.id, { etiquetas })}
+              />
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {etapaLead && <span className={`chip ${corEtapa(etapaLead)}`} title="Etapa do lead no funil">{labelEtapa(etapaLead)}</span>}
+          <button
+            type="button"
+            onClick={() => mudarStatus(fechada(conversa) ? "ABERTA" : "FECHADA")}
+            disabled={mudandoStatus}
+            className="btn-ghost"
+            title={fechada(conversa) ? "Volta para a aba Abertas" : "Tira da fila de abertas; se o cliente escrever de novo, reabre sozinha"}
+          >
+            {fechada(conversa) ? "↺ Reabrir" : "✓ Resolver"}
+          </button>
           {conversa.leadId && <Link href={`/leads/${conversa.leadId}`} className="btn-ghost">Ver lead</Link>}
           {conversa.leadId && (
             <Link href={`/orcamentos/novo?lead=${conversa.leadId}`} className="btn-ghost">+ Orçamento</Link>
@@ -445,7 +598,15 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
       )}
 
       <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
-        {conversa.mensagens.map((m) => (
+        {temMais && (
+          <div className="text-center">
+            <button type="button" onClick={aoCarregarAnteriores} className="chip border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
+              carregar mensagens anteriores
+            </button>
+          </div>
+        )}
+        {carregando && mensagens.length === 0 && <p className="text-center text-xs text-slate-400">carregando…</p>}
+        {mensagens.map((m) => (
           <Balao key={m.id} m={m} aoReenviar={() => enviar({ reenviarId: m.id })} enviando={enviando} />
         ))}
         <div ref={fim} />
@@ -481,6 +642,27 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
             <b>Não foi enviada:</b> {erroEnvio}
           </div>
         )}
+        {sugestoes.length > 0 && (
+          <ul className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white text-sm shadow-sm" role="listbox">
+            {sugestoes.map((m, i) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); usarRapida(m); }}
+                  className={`flex w-full gap-2 px-3 py-1.5 text-left ${i === indiceSugestao ? "bg-emerald-50" : "hover:bg-slate-50"}`}
+                >
+                  <b className="shrink-0 font-medium text-emerald-700">/{m.atalho}</b>
+                  <span className="truncate text-slate-500">{m.texto.replace(/\s+/g, " ")}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {termo !== null && sugestoes.length === 0 && (
+          <p className="text-[11px] text-slate-400">
+            Nenhuma mensagem rápida com "/{termo}". <Link href="/configuracoes/mensagens-rapidas" className="underline">Cadastrar</Link>
+          </p>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             ref={areaRef}
@@ -489,7 +671,7 @@ function Conversa({ conversa, agora, templateReabertura, aoEnviar, aoMudarLead }
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={aoTeclar}
-            placeholder={`Responder por ${CANAL[conversa.canal].rotulo}… (Enter envia · Shift+Enter quebra linha)`}
+            placeholder={`Responder por ${CANAL[conversa.canal].rotulo}… (Enter envia · Shift+Enter quebra linha · / mensagens rápidas)`}
           />
           <button className="btn-primary" disabled={enviando || !texto.trim()}>
             {enviando ? "Enviando…" : "Enviar"}
@@ -555,6 +737,7 @@ function Balao({ m, aoReenviar, enviando }) {
               {m.intencao?.toLowerCase()} · {m.scoreIntencao}
             </span>
           )}
+          {saida && m.autor?.nome && <span>{m.autor.nome.split(" ")[0]} ·</span>}
           <span>{dataHora(m.enviadoEm)}</span>
           {st && <span title={st.titulo} className={`font-semibold ${falhou ? "text-rose-600" : st.classe ?? ""}`}>{st.icone}</span>}
         </div>

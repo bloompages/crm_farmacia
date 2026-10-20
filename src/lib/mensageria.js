@@ -1,8 +1,11 @@
 import { db } from "./db.js";
 import { obterProvedor } from "./integrations/index.js";
-import { analisarIntencao, temperaturaPorScore, CORTE_OPORTUNIDADE } from "./intencao.js";
+import { analisarIntencao, temperaturaPorScore, scoreEsfriado, CORTE_OPORTUNIDADE } from "./intencao.js";
+import { normalizarTelefone } from "./telefone.js";
+import { paraBusca, buscaLead, buscaConversa } from "./busca.js";
 import { descreverMensagem, janela24h } from "./conversa.js";
 import { normalizarTexto } from "./formatacao.js";
+import { alertasConfiguracao } from "./configuracao.js";
 
 /**
  * Ingestão de mensagem recebida (qualquer tipo: texto, mídia, botão, localização…):
@@ -40,6 +43,7 @@ export async function receberMensagem(msg) {
         canal,
         contatoExterno: contato,
         nomeExibicao: msg.nomeExibicao ?? contato,
+        busca: buscaConversa({ nomeExibicao: msg.nomeExibicao ?? contato, contatoExterno: contato }),
         leadId: lead.id,
       },
       include: { lead: true },
@@ -53,6 +57,7 @@ export async function receberMensagem(msg) {
       direcao: "ENTRADA",
       tipo,
       texto,
+      textoBusca: paraBusca(texto),
       status: "RECEBIDA",
       idExterno: msg.idExterno ?? null,
       intencao,
@@ -80,11 +85,15 @@ export async function receberMensagem(msg) {
 
   if (conversa.leadId) {
     const lead = await db.lead.findUnique({ where: { id: conversa.leadId } });
-    const novoScore = Math.min(100, (lead?.score ?? 0) + Math.round(score / 2));
+    // soma ao score de hoje (já esfriado), não ao de semanas atrás
+    const atual = lead ? scoreEsfriado(lead.scoreBase, lead.scoreEm) : 0;
+    const novoScore = Math.min(100, atual + Math.round(score / 2));
     await db.lead.update({
       where: { id: conversa.leadId },
       data: {
         score: novoScore,
+        scoreBase: novoScore,
+        scoreEm: new Date(),
         temperatura: temperaturaPorScore(novoScore),
         ultimoContatoEm: enviadoEm,
       },
@@ -126,17 +135,22 @@ export async function atualizarStatusMensagem({ idExterno, status, erro }) {
 
 /** Cria o lead a partir de um contato novo — o "radar" de novos leads. */
 async function identificarLead({ canal, contato, nome, score }) {
-  if (canal === "WHATSAPP") {
-    const existente = await db.lead.findUnique({ where: { telefone: contato } });
+  // o wa_id pode vir sem o 9º dígito; o lead guarda a forma canônica (cadastro manual cai no mesmo registro)
+  const telefone = canal === "WHATSAPP" ? normalizarTelefone(`+${contato}`) : null; // wa_id sempre traz o DDI
+  if (telefone) {
+    const existente = await db.lead.findUnique({ where: { telefone } });
     if (existente) return existente;
   }
+  const nomeLead = nome || (canal === "INSTAGRAM" ? `@${contato}` : contato);
   const lead = await db.lead.create({
     data: {
-      nome: nome || (canal === "INSTAGRAM" ? `@${contato}` : contato),
-      telefone: canal === "WHATSAPP" ? contato : null,
+      nome: nomeLead,
+      busca: buscaLead({ nome: nomeLead }),
+      telefone,
       origem: canal,
       etapa: "NOVO",
       score,
+      scoreBase: score,
       temperatura: temperaturaPorScore(score),
     },
   });
@@ -155,13 +169,13 @@ async function identificarLead({ canal, contato, nome, score }) {
  * A mensagem é gravada ANTES de chamar o provedor (status ENVIANDO); se o envio
  * falhar ela fica como FALHOU com o motivo — nunca desaparece — e pode ser reenviada.
  */
-export async function enviarMensagem({ conversaId, texto, template }) {
+export async function enviarMensagem({ conversaId, texto, template, autorId = null }) {
   const conversa = await db.conversa.findUnique({ where: { id: conversaId } });
   if (!conversa) throw new Error("Conversa não encontrada");
 
   const corpo = template ? `Template "${template.nome}" enviado para reabrir a conversa.` : normalizarTexto(texto);
   const mensagem = await db.mensagem.create({
-    data: { conversaId, direcao: "SAIDA", tipo: template ? "TEMPLATE" : "TEXTO", texto: corpo, status: "ENVIANDO" },
+    data: { conversaId, direcao: "SAIDA", tipo: template ? "TEMPLATE" : "TEXTO", texto: corpo, textoBusca: paraBusca(corpo), status: "ENVIANDO", autorId },
   });
   return despachar(mensagem, conversa, template);
 }
@@ -213,6 +227,10 @@ async function despachar(mensagem, conversa, template) {
 
   if (!erro && conversa.leadId) {
     await db.lead.update({ where: { id: conversa.leadId }, data: { ultimoContatoEm: new Date() } });
+    // quem responde primeiro um lead sem dono assume o atendimento
+    if (mensagem.autorId) {
+      await db.lead.updateMany({ where: { id: conversa.leadId, responsavelId: null }, data: { responsavelId: mensagem.autorId } });
+    }
   }
   return atualizada;
 }
@@ -231,6 +249,7 @@ export async function saudeSincronizacao() {
     ultimoWebhookEm: ultimoEvento?.recebidoEm ?? null,
     ultimaRecebidaEm: ultimaRecebida?.enviadoEm ?? null,
     eventosComErro: errosEventos,
+    alertas: alertasConfiguracao(),
     mensagensFalhas,
     agora: new Date(),
   };

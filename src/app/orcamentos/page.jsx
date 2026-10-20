@@ -2,10 +2,12 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { brl, dataCurta, labelMotivo, STATUS_ORCAMENTO } from "@/lib/constantes";
 import { COR_STATUS_ORCAMENTO as CORES, TOM, chipFiltro } from "@/lib/tema";
+import { manutencao } from "@/lib/manutencao";
 
 export const dynamic = "force-dynamic";
 
 export default async function Orcamentos({ searchParams }) {
+  await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const sp = await searchParams;
   const status = sp?.status;
   const motivo = sp?.motivo;

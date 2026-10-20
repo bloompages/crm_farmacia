@@ -55,5 +55,21 @@ export function temperaturaPorScore(score) {
   return "FRIO";
 }
 
+/**
+ * O interesse esfria com o tempo: o score perde metade a cada MEIA_VIDA_DIAS sem
+ * nova mensagem. Quem pediu preço há 3 meses e sumiu deixa de aparecer como quente.
+ */
+export const MEIA_VIDA_DIAS = 30;
+
+/**
+ * Score de hoje a partir de Lead.scoreBase/scoreEm. Sempre parte da base (nunca do
+ * score já esfriado), então rodar várias vezes não acumula erro de arredondamento.
+ */
+export function scoreEsfriado(base, desde, agora = new Date()) {
+  const dias = Math.max(0, (agora - new Date(desde ?? agora)) / 86400000);
+  if (dias < 1) return base ?? 0; // conversa em andamento não perde pontos
+  return Math.round((base ?? 0) * 0.5 ** (dias / MEIA_VIDA_DIAS));
+}
+
 /** Um lead só é "identificado" como oportunidade comercial acima deste corte. */
 export const CORTE_OPORTUNIDADE = 25;

@@ -145,3 +145,65 @@ export async function funilComValor() {
     };
   });
 }
+
+/** Números do atendimento (conversas) no período, como no painel "Atendimento" de outros CRMs. */
+export async function resumoAtendimento(dias = 30) {
+  const desde = inicioPeriodo(dias);
+  const [noPeriodo, encerradas, abertas, mensagens, porCanal] = await Promise.all([
+    db.conversa.count({ where: { ultimaMsgEm: { gte: desde } } }),
+    db.conversa.count({ where: { status: "FECHADA", ultimaMsgEm: { gte: desde } } }),
+    db.conversa.findMany({
+      where: { status: { not: "FECHADA" } },
+      select: { mensagens: { orderBy: { enviadoEm: "desc" }, take: 1, select: { direcao: true } } },
+    }),
+    db.mensagem.count({ where: { enviadoEm: { gte: desde } } }),
+    db.conversa.groupBy({ by: ["canal"], _count: true, where: { ultimaMsgEm: { gte: desde } } }),
+  ]);
+  return {
+    noPeriodo,
+    encerradas,
+    emAberto: abertas.length,
+    semResposta: abertas.filter((c) => c.mensagens[0]?.direcao === "ENTRADA").length,
+    mensagens,
+    porCanal: porCanal.map((c) => ({ canal: c.canal, total: c._count })).sort((a, b) => b.total - a.total),
+  };
+}
+
+/** Novos leads por dia (um balde por dia, inclusive os dias sem nenhum). */
+export async function leadsPorDia(dias = 30) {
+  const desde = inicioPeriodo(dias);
+  const leads = await db.lead.findMany({ where: { createdAt: { gte: desde } }, select: { createdAt: true } });
+  const chave = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const cont = new Map();
+  for (const l of leads) cont.set(chave(l.createdAt), (cont.get(chave(l.createdAt)) ?? 0) + 1);
+  const hoje = new Date();
+  const saida = [];
+  for (const d = new Date(desde); d <= hoje; d.setDate(d.getDate() + 1)) {
+    saida.push({
+      dia: chave(d),
+      rotulo: d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }),
+      rotuloCurto: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      total: cont.get(chave(d)) ?? 0,
+    });
+  }
+  return saida;
+}
+
+/** Aniversariantes nos próximos `dias` dias (hoje incluso), do mais próximo ao mais distante. */
+export async function aniversariantes(dias = 7) {
+  const leads = await db.lead.findMany({
+    where: { dataNascimento: { not: null }, anonimizadoEm: null },
+    select: { id: true, nome: true, dataNascimento: true, consentimentoMarketing: true, telefone: true },
+  });
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return leads
+    .map((l) => {
+      const n = new Date(l.dataNascimento);
+      let prox = new Date(hoje.getFullYear(), n.getMonth(), n.getDate());
+      if (prox < hoje) prox = new Date(hoje.getFullYear() + 1, n.getMonth(), n.getDate());
+      return { ...l, emDias: Math.round((prox - hoje) / 86400000), proximo: prox };
+    })
+    .filter((l) => l.emDias < dias)
+    .sort((a, b) => a.emDias - b.emDias);
+}

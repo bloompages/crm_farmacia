@@ -2,10 +2,12 @@ import Link from "next/link";
 import { analiseRejeicoes } from "@/lib/metricas";
 import { brl, dataCurta, labelMotivo } from "@/lib/constantes";
 import { chipFiltro } from "@/lib/tema";
+import { manutencao } from "@/lib/manutencao";
 
 export const dynamic = "force-dynamic";
 
 export default async function Relatorios({ searchParams }) {
+  await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const sp = await searchParams;
   const dias = Number(sp?.dias ?? 90);
   const r = await analiseRejeicoes(dias);

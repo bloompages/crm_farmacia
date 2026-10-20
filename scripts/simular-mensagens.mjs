@@ -7,6 +7,8 @@
  *   npm run simular -- "texto"         # uma mensagem avulsa de WhatsApp
  *   npm run simular -- --quebrado      # envia um payload inválido para ver o evento com erro no inbox
  */
+import { createHmac } from "node:crypto";
+
 const BASE = process.env.CRM_URL ?? "http://localhost:3000";
 
 const ROTEIRO = [
@@ -23,11 +25,13 @@ const ROTEIRO = [
 ];
 
 async function enviar(evento, rota) {
-  const r = await fetch(`${BASE}/api/webhooks/${rota}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: typeof evento === "string" ? evento : JSON.stringify(evento),
-  });
+  const body = typeof evento === "string" ? evento : JSON.stringify(evento);
+  const headers = { "Content-Type": "application/json" };
+  // com META_APP_SECRET no ambiente, assina como a Meta (o CRM em produção exige)
+  if (process.env.META_APP_SECRET) {
+    headers["X-Hub-Signature-256"] = `sha256=${createHmac("sha256", process.env.META_APP_SECRET).update(body, "utf8").digest("hex")}`;
+  }
+  const r = await fetch(`${BASE}/api/webhooks/${rota}`, { method: "POST", headers, body });
   const json = await r.json().catch(() => ({}));
   return json;
 }

@@ -17,11 +17,14 @@ import { receberMensagem, atualizarStatusMensagem } from "./mensageria.js";
 export async function tratarWebhook(req, canal) {
   const bruto = await req.text();
 
-  if (!assinaturaValida(bruto, req.headers.get("x-hub-signature-256"))) {
+  const assinatura = verificarAssinatura(bruto, req.headers.get("x-hub-signature-256"));
+  if (!assinatura.ok) {
+    // não guarda o corpo: sem assinatura válida, não se sabe de onde veio
     await db.eventoWebhook.create({
-      data: { canal, provedor: obterProvedor().nome, payload: bruto.slice(0, 20000), status: "IGNORADO", erro: "Assinatura X-Hub-Signature-256 inválida" },
+      data: { canal, provedor: obterProvedor().nome, payload: "", status: "IGNORADO", erro: assinatura.erro },
     });
-    return new Response("assinatura inválida", { status: 401 });
+    if (assinatura.configuracao) console.error(`[webhook:${canal}] ${assinatura.erro}`);
+    return new Response(assinatura.erro, { status: assinatura.configuracao ? 503 : 401 });
   }
 
   let payload;
@@ -98,19 +101,33 @@ export async function reprocessarEvento(eventoId) {
 /** Verificação do webhook exigida pela Meta (GET com hub.challenge). */
 export function verificarWebhook(req) {
   const p = new URL(req.url).searchParams;
-  if (p.get("hub.verify_token") === (process.env.META_VERIFY_TOKEN || "crm-farmacia-verify")) {
+  // em produção não existe token padrão: sem META_VERIFY_TOKEN a verificação sempre falha
+  const esperado = process.env.META_VERIFY_TOKEN || (producao() ? null : "crm-farmacia-verify");
+  if (esperado && p.get("hub.verify_token") === esperado) {
     return new Response(p.get("hub.challenge") ?? "", { status: 200 });
   }
   return new Response("token inválido", { status: 403 });
 }
 
-/** Com META_APP_SECRET preenchido, só aceita payloads assinados pela Meta. Sem ele, aceita tudo (dev/mock). */
-function assinaturaValida(bruto, header) {
+const producao = () => process.env.NODE_ENV === "production";
+
+/**
+ * Só aceita payloads assinados com META_APP_SECRET. Sem o segredo, aceita tudo
+ * apenas fora de produção (dev/simulador); em produção recusa — senão qualquer
+ * pessoa que descobrisse a URL criaria leads e mensagens falsas.
+ */
+export function verificarAssinatura(bruto, header) {
   const segredo = process.env.META_APP_SECRET;
-  if (!segredo) return true;
-  if (!header?.startsWith("sha256=")) return false;
+  if (!segredo) {
+    return producao()
+      ? { ok: false, configuracao: true, erro: "META_APP_SECRET não configurado: webhooks recusados em produção" }
+      : { ok: true };
+  }
+  if (!header?.startsWith("sha256=")) return { ok: false, erro: "Assinatura X-Hub-Signature-256 ausente" };
   const esperado = createHmac("sha256", segredo).update(bruto, "utf8").digest("hex");
   const recebido = header.slice(7);
-  if (esperado.length !== recebido.length) return false;
-  return timingSafeEqual(Buffer.from(esperado, "hex"), Buffer.from(recebido, "hex"));
+  if (!/^[0-9a-f]{64}$/i.test(recebido) || !timingSafeEqual(Buffer.from(esperado, "hex"), Buffer.from(recebido, "hex"))) {
+    return { ok: false, erro: "Assinatura X-Hub-Signature-256 inválida" };
+  }
+  return { ok: true };
 }

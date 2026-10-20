@@ -271,3 +271,85 @@ export function GraficoOrigens({ origens }) {
     />
   );
 }
+
+/* ---------------------------------------------------------------------------
+   Novos leads por dia — uma série só (sem legenda: o título nomeia), colunas
+   finas ancoradas na base, rótulo direto só no maior dia, dica no hover.
+--------------------------------------------------------------------------- */
+export function GraficoLeadsDia({ dados }) {
+  const [ativo, setAtivo] = useState(null);
+  const [tabela, setTabela] = useState(false);
+  const total = dados.reduce((t, d) => t + d.total, 0);
+  if (!total) return <p className="text-sm text-slate-400">Nenhum lead novo no período.</p>;
+
+  const L = 30, R = 8, T = 18, B = 24, W = 720, H = 200;
+  const plotW = W - L - R;
+  const plotH = H - T - B;
+  const max = Math.max(1, ...dados.map((d) => d.total));
+  const banda = plotW / dados.length;
+  const larg = Math.max(2, Math.min(18, banda - 2)); // 2px de respiro entre colunas
+  const y = (v) => T + plotH - (v / max) * plotH;
+  const iMax = dados.findIndex((d) => d.total === max);
+  const passoRotulo = Math.ceil(dados.length / 8);
+  const coluna = (x, y1, w) => {
+    const r = Math.min(4, w / 2, T + plotH - y1);
+    const y0 = T + plotH;
+    return `M${x},${y0} L${x},${y1 + r} Q${x},${y1} ${x + r},${y1} L${x + w - r},${y1} Q${x + w},${y1} ${x + w},${y1 + r} L${x + w},${y0} Z`;
+  };
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>{total} lead(s) no período</span>
+        <button className="underline decoration-slate-300 hover:text-slate-700" onClick={() => setTabela((t) => !t)}>{tabela ? "ver gráfico" : "ver dados"}</button>
+      </div>
+      {tabela ? (
+        <div className="max-h-64 overflow-y-auto">
+          <table className="w-full text-sm" style={{ fontVariantNumeric: "tabular-nums" }}>
+            <thead className="text-left text-xs uppercase tracking-wide text-slate-400"><tr><th className="py-1 font-medium">Dia</th><th className="py-1 font-medium">Novos leads</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {dados.filter((d) => d.total > 0).map((d) => <tr key={d.dia}><td className="py-1 text-slate-600">{d.rotulo}</td><td className="py-1">{d.total}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="relative">
+          <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Novos leads por dia">
+            {[1, 0.5].map((f) => (
+              <g key={f}>
+                <line x1={L} x2={W - R} y1={y(max * f)} y2={y(max * f)} stroke={COR.grade} strokeWidth="1" />
+                <text x={L - 6} y={y(max * f) + 3.5} textAnchor="end" fontSize="10" fill={COR.mudo}>{Math.round(max * f)}</text>
+              </g>
+            ))}
+            <line x1={L} x2={W - R} y1={T + plotH} y2={T + plotH} stroke={COR.eixo} strokeWidth="1" />
+            {dados.map((d, i) => {
+              const x = L + i * banda + (banda - larg) / 2;
+              return (
+                <g key={d.dia}>
+                  <rect x={L + i * banda} y={T} width={banda} height={plotH} fill={COR.tinta} fillOpacity={ativo === i ? 0.04 : 0}
+                    onMouseEnter={() => setAtivo(i)} onMouseLeave={() => setAtivo(null)} />
+                  {d.total > 0 && <path d={coluna(x, y(d.total), larg)} fill={COR.ganho} pointerEvents="none" />}
+                  {i % passoRotulo === 0 && (
+                    <text x={L + i * banda + banda / 2} y={H - 8} textAnchor="middle" fontSize="10" fill={COR.mudo} pointerEvents="none">{d.rotuloCurto}</text>
+                  )}
+                  {i === iMax && (
+                    <text x={x + larg / 2} y={y(d.total) - 5} textAnchor="middle" fontSize="10" fontWeight="600" fill={COR.secundario} pointerEvents="none">{d.total}</text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          {ativo !== null && (
+            <div
+              className="pointer-events-none absolute top-1 z-10 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs shadow-lg"
+              style={{ left: `${Math.min(80, ((ativo + 0.5) / dados.length) * 100)}%` }}
+            >
+              <div className="font-medium text-slate-800">{dados[ativo].rotulo}</div>
+              <div className="text-slate-600">{dados[ativo].total} novo(s) lead(s)</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,18 +1,21 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ORIGENS } from "@/lib/constantes";
 
-export default function NovoLeadDialog() {
+export default function NovoLeadDialog({ etiquetasEmUso = [] }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [duplicado, setDuplicado] = useState(null); // id do lead que já tem esse telefone
 
   async function salvar(e) {
     e.preventDefault();
     setSalvando(true);
     setErro("");
+    setDuplicado(null);
     const f = Object.fromEntries(new FormData(e.currentTarget));
     const r = await fetch("/api/leads", {
       method: "POST",
@@ -20,7 +23,11 @@ export default function NovoLeadDialog() {
       body: JSON.stringify(f),
     });
     setSalvando(false);
-    if (!r.ok) return setErro((await r.json()).erro ?? "Erro ao salvar");
+    if (!r.ok) {
+      const json = await r.json();
+      setDuplicado(r.status === 409 ? json.leadId : null);
+      return setErro(json.erro ?? "Erro ao salvar");
+    }
     setAberto(false);
     router.refresh();
   }
@@ -38,7 +45,7 @@ export default function NovoLeadDialog() {
           </div>
           <div>
             <label className="label">WhatsApp</label>
-            <input name="telefone" className="input" placeholder="5511987654321" />
+            <input name="telefone" className="input" inputMode="tel" placeholder="(11) 98765-4321" />
           </div>
           <div>
             <label className="label">E-mail</label>
@@ -57,6 +64,25 @@ export default function NovoLeadDialog() {
               {ORIGENS.map((o) => <option key={o} value={o}>{o.toLowerCase()}</option>)}
             </select>
           </div>
+          <div>
+            <label className="label">CPF/CNPJ</label>
+            <input name="documento" className="input" inputMode="numeric" />
+          </div>
+          <div>
+            <label className="label">Aniversário</label>
+            <input name="dataNascimento" type="date" className="input" />
+          </div>
+          <div>
+            <label className="label">Convênio / plano</label>
+            <input name="convenio" className="input" placeholder="Unimed, Bradesco Saúde, Farmácia Popular…" />
+          </div>
+          <div>
+            <label className="label">Etiquetas (separadas por vírgula)</label>
+            <input name="etiquetas" className="input" list="etiquetas-em-uso" placeholder="vip, recompra mensal" />
+            <datalist id="etiquetas-em-uso">
+              {etiquetasEmUso.map((e) => <option key={e} value={e} />)}
+            </datalist>
+          </div>
           <div className="sm:col-span-2">
             <label className="label">Interesses (separados por vírgula)</label>
             <input name="interesses" className="input" placeholder="manipulados, dermocosméticos" />
@@ -66,7 +92,12 @@ export default function NovoLeadDialog() {
             <textarea name="observacoes" rows={2} className="input" />
           </div>
         </div>
-        {erro && <p className="mt-3 text-sm text-rose-600">{erro}</p>}
+        {erro && (
+          <p className="mt-3 text-sm text-rose-600">
+            {erro}
+            {duplicado && <> — <Link href={`/leads/${duplicado}`} className="underline">abrir ficha</Link></>}
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={() => setAberto(false)}>Cancelar</button>
           <button className="btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar lead"}</button>

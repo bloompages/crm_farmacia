@@ -2,8 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/// Postgres (Prisma Postgres ligado ao projeto na Vercel; DATABASE_URL vem da integração)
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -13,11 +14,47 @@ model User {
   nome      String
   email     String   @unique
   cargo     String   @default("Atendente")
+  papel     String   @default("ATENDENTE")   // GERENTE | ATENDENTE (ver src/lib/auth.js)
+  senhaHash String?                         // scrypt; sem senha = não consegue entrar
+  ativo     Boolean  @default(true)          // desativar derruba as sessões abertas
+  ultimoLoginEm DateTime?
   createdAt DateTime @default(now())
 
   leads     Lead[]
   orcamentos Orcamento[]
   atividades Atividade[]
+  mensagens Mensagem[]
+  sessoes   Sessao[]
+  auditoria Auditoria[]
+}
+
+/// Sessão de login. O cookie leva um token aleatório; aqui fica só o hash dele.
+model Sessao {
+  id        String   @id                    // sha256 do token do cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiraEm  DateTime
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiraEm])
+}
+
+/// Trilha de acesso a dados pessoais (LGPD): quem viu, exportou, alterou ou apagou o quê.
+model Auditoria {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  acao       String                          // LOGIN | LOGIN_FALHOU | LOGOUT | VER_LEAD | VER_ANEXO | EXPORTAR_TITULAR | ANONIMIZAR_TITULAR | EXCLUIR_LEAD | ...
+  entidade   String?                         // Lead | Orcamento | Mensagem | User
+  entidadeId String?
+  detalhe    String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entidade, entidadeId])
 }
 
 /// Lead = pessoa/empresa com potencial de compra
@@ -32,10 +69,20 @@ model Lead {
   origem        String   @default("MANUAL")  // WHATSAPP | INSTAGRAM | INDICACAO | BALCAO | SITE | MANUAL
   etapa         String   @default("NOVO")    // NOVO | ORCAMENTO | APROVADO | PERDIDO
   temperatura   String   @default("FRIO")    // QUENTE | MORNO | FRIO
-  score         Int      @default(0)
+  score         Int      @default(0)         // score atual = scoreBase esfriado desde scoreEm (ver intencao.js)
+  scoreBase     Int      @default(0)         // score no momento da última mensagem com sinal
+  scoreEm       DateTime @default(now())
   interesses    String   @default("")        // lista separada por vírgula (ex.: manipulados,dermocosméticos)
+  etiquetas     String   @default("")        // etiquetas livres em minúsculas, separadas por vírgula (ver src/lib/etiquetas.js)
+  dataNascimento DateTime?                   // aniversário (lembrete e oferta, se houver consentimento)
+  convenio      String?                      // plano de saúde / convênio / PBM
   observacoes   String?
   motivoPerda   String?
+  /// consentimento para contato ativo (lembrete de recompra, ofertas) — base legal LGPD art. 7º, I
+  consentimentoMarketing Boolean @default(false)
+  consentimentoEm        DateTime?
+  anonimizadoEm DateTime?                    // dados pessoais apagados a pedido do titular
+  busca         String   @default("")        // nome/empresa/e-mail sem acento e minúsculo (ver src/lib/busca.js)
   valorAprovado Float?                       // valor fechado ao aprovar na conversa (soma dos "Total" ou editado pelo atendente)
   primeiroContatoEm DateTime @default(now())
   ultimoContatoEm   DateTime @default(now())
@@ -51,6 +98,7 @@ model Lead {
 
   @@index([etapa])
   @@index([origem])
+  @@index([temperatura])
 }
 
 /// Conversa = thread de um canal (WhatsApp ou Instagram) com um contato
@@ -59,6 +107,7 @@ model Conversa {
   canal         String                        // WHATSAPP | INSTAGRAM
   contatoExterno String                       // telefone E.164 ou @usuario do IG
   nomeExibicao  String?
+  busca         String   @default("")         // nome + contato sem acento (ver src/lib/busca.js)
   status        String   @default("ABERTA")   // ABERTA | AGUARDANDO | FECHADA
   naoLidas      Int      @default(0)
   ultimaMsgEm   DateTime @default(now())
@@ -82,12 +131,15 @@ model Mensagem {
   direcao      String                        // ENTRADA | SAIDA
   tipo         String   @default("TEXTO")    // TEXTO | IMAGEM | AUDIO | VIDEO | DOCUMENTO | FIGURINHA | LOCALIZACAO | CONTATO | INTERATIVA | TEMPLATE | OUTRO
   texto        String                        // corpo ou legenda; para mídia sem legenda, descrição amigável
+  textoBusca   String   @default("")         // texto sem acento e minúsculo, para a busca do inbox
   idExterno    String?  @unique
   intencao     String?                       // COMPRA | ORCAMENTO | DUVIDA | RECLAMACAO | OUTRO
   scoreIntencao Int     @default(0)
   /// ENTRADA: RECEBIDA. SAIDA: ENVIANDO | ENVIADA | ENTREGUE | LIDA | FALHOU
   status       String   @default("RECEBIDA")
   erro         String?                       // motivo da falha de envio (texto legível para o atendente)
+  autorId      String?                       // SAIDA: quem respondeu
+  autor        User?    @relation(fields: [autorId], references: [id], onDelete: SetNull)
   /// anexo: id no provedor, mime, nome original, tamanho e (quando houver) URL direta
   midiaId      String?
   midiaMime    String?
@@ -96,7 +148,7 @@ model Mensagem {
   midiaUrl     String?
   enviadoEm    DateTime @default(now())
 
-  @@index([conversaId])
+  @@index([conversaId, enviadoEm])
   @@index([status])
 }
 
@@ -153,6 +205,7 @@ model Orcamento {
 
   @@index([status])
   @@index([motivoRejeicao])
+  @@index([validadeEm])
 }
 
 model ItemOrcamento {
@@ -165,6 +218,15 @@ model ItemOrcamento {
   quantidade  Int       @default(1)
   precoUnit   Float
   subtotal    Float
+}
+
+/// Resposta pronta: digitar "/atalho" no inbox insere o texto ({nome} vira o primeiro nome do contato)
+model MensagemRapida {
+  id        String   @id @default(cuid())
+  atalho    String   @unique                 // sem a barra, minúsculo, sem espaço (ex.: "pix")
+  texto     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Atividade {

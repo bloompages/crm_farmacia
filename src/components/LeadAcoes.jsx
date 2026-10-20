@@ -3,22 +3,29 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ETAPAS, MOTIVOS_REJEICAO } from "@/lib/constantes";
 
-export default function LeadAcoes({ lead }) {
+export default function LeadAcoes({ lead, equipe = [] }) {
   const router = useRouter();
   const [etapa, setEtapa] = useState(lead.etapa);
   const [motivo, setMotivo] = useState(lead.motivoPerda ?? "");
   const [nota, setNota] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
 
   async function patch(body) {
     setOcupado(true);
-    await fetch(`/api/leads/${lead.id}`, {
+    setErro("");
+    const r = await fetch(`/api/leads/${lead.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }).catch(() => null);
     setOcupado(false);
+    if (!r?.ok) {
+      setErro((r && (await r.json().catch(() => ({}))).erro) || "Não foi possível salvar");
+      return false;
+    }
     router.refresh();
+    return true;
   }
 
   return (
@@ -36,6 +43,19 @@ export default function LeadAcoes({ lead }) {
           }}
         >
           {ETAPAS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label className="label">Responsável</label>
+        <select
+          className="input"
+          defaultValue={lead.responsavelId ?? ""}
+          disabled={ocupado}
+          onChange={(e) => patch({ responsavelId: e.target.value || null })}
+        >
+          <option value="">Sem responsável</option>
+          {equipe.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
         </select>
       </div>
 
@@ -68,11 +88,12 @@ export default function LeadAcoes({ lead }) {
         <button
           className="btn-ghost mt-2 w-full"
           disabled={!nota.trim() || ocupado}
-          onClick={async () => { await patch({ nota }); setNota(""); }}
+          onClick={async () => { if (await patch({ nota })) setNota(""); }}
         >
           Adicionar à timeline
         </button>
       </div>
+      {erro && <p className="text-sm text-rose-600">{erro}</p>}
     </div>
   );
 }

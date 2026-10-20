@@ -5,20 +5,36 @@ import { brl, corEtapa, labelEtapa, labelMotivo, dataHora, dataCurta } from "@/l
 import LeadAcoes from "@/components/LeadAcoes";
 import OrcamentoAcoes from "@/components/OrcamentoAcoes";
 import { COR_STATUS_ORCAMENTO as CORES_STATUS } from "@/lib/tema";
+import { formatarTelefone } from "@/lib/telefone";
+import { manutencao } from "@/lib/manutencao";
+import { usuarioAtual, ehGerente } from "@/lib/usuario";
+import { auditarLeitura } from "@/lib/auditoria";
+import LeadPrivacidade from "@/components/LeadPrivacidade";
+import LeadFicha from "@/components/LeadFicha";
+import Etiquetas from "@/components/Etiquetas";
+import { contarEtiquetas } from "@/lib/etiquetas";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeadDetalhe({ params }) {
+  await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const { id } = await params;
   const lead = await db.lead.findUnique({
     where: { id },
     include: {
       orcamentos: { include: { itens: true }, orderBy: { createdAt: "desc" } },
-      atividades: { orderBy: { createdAt: "desc" }, take: 40 },
+      atividades: { orderBy: { createdAt: "desc" }, take: 40, include: { autor: { select: { nome: true } } } },
       conversas: { include: { _count: { select: { mensagens: true } } } },
+      responsavel: { select: { id: true, nome: true } },
     },
   });
   if (!lead) notFound();
+  const [usuario, equipe, comEtiqueta] = await Promise.all([
+    usuarioAtual(),
+    db.user.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    db.lead.findMany({ where: { etiquetas: { not: "" } }, select: { etiquetas: true } }),
+  ]);
+  await auditarLeitura("VER_LEAD", { entidade: "Lead", entidadeId: lead.id, detalhe: lead.nome });
 
   const ganho = lead.orcamentos.filter((o) => o.status === "ACEITO").reduce((t, o) => t + o.total, 0);
   const perdido = lead.orcamentos.filter((o) => o.status === "REJEITADO").reduce((t, o) => t + o.total, 0);
@@ -33,8 +49,16 @@ export default async function LeadDetalhe({ params }) {
             <span className={`chip ${corEtapa(lead.etapa)}`}>{labelEtapa(lead.etapa)}</span>
             <span className="chip border-slate-200 bg-white">{lead.origem.toLowerCase()}</span>
             <span className="chip border-slate-200 bg-white">score {lead.score} · {lead.temperatura.toLowerCase()}</span>
-            {lead.telefone && <span>{lead.telefone}</span>}
+            {lead.telefone && <span>{formatarTelefone(lead.telefone)}</span>}
             {lead.email && <span>{lead.email}</span>}
+          </div>
+          <div className="mt-2">
+            <Etiquetas
+              leadId={lead.id}
+              etiquetas={lead.etiquetas}
+              sugestoes={contarEtiquetas(comEtiqueta).map((e) => e.nome)}
+              desabilitado={!!lead.anonimizadoEm}
+            />
           </div>
         </div>
         <div className="flex gap-2">
@@ -101,7 +125,9 @@ export default async function LeadDetalhe({ params }) {
                   <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
                   <div className="min-w-0">
                     <p className="text-sm text-slate-700">{a.descricao}</p>
-                    <p className="text-xs text-slate-400">{a.tipo.toLowerCase()} · {dataHora(a.createdAt)}</p>
+                    <p className="text-xs text-slate-400">
+                      {a.tipo.toLowerCase()} · {dataHora(a.createdAt)}{a.autor && ` · ${a.autor.nome}`}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -111,20 +137,17 @@ export default async function LeadDetalhe({ params }) {
         </div>
 
         <div className="space-y-4">
-          <LeadAcoes lead={lead} />
-          <div className="card p-4 text-sm">
-            <h2 className="mb-2 text-sm font-semibold">Ficha</h2>
-            <dl className="space-y-1.5 text-slate-600">
-              <div className="flex justify-between gap-3"><dt className="text-slate-400">Tipo</dt><dd>{lead.tipo}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-slate-400">Empresa</dt><dd className="truncate">{lead.empresa ?? "—"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-slate-400">Interesses</dt><dd className="truncate">{lead.interesses || "—"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-slate-400">Último contato</dt><dd>{dataCurta(lead.ultimoContatoEm)}</dd></div>
-              {lead.motivoPerda && (
-                <div className="flex justify-between gap-3"><dt className="text-slate-400">Motivo da perda</dt><dd className="text-rose-600">{labelMotivo(lead.motivoPerda)}</dd></div>
-              )}
-            </dl>
-            {lead.observacoes && <p className="mt-3 border-t border-slate-100 pt-3 text-slate-600">{lead.observacoes}</p>}
-          </div>
+          {lead.anonimizadoEm ? (
+            <div className="aviso aviso-neutro">
+              Dados pessoais apagados a pedido do titular em {dataCurta(lead.anonimizadoEm)}. Os valores de orçamentos seguem nos relatórios, sem identificação.
+            </div>
+          ) : (
+            <>
+              <LeadAcoes lead={lead} equipe={equipe} />
+              <LeadPrivacidade lead={lead} gerente={ehGerente(usuario)} />
+            </>
+          )}
+          <LeadFicha lead={JSON.parse(JSON.stringify({ ...lead, orcamentos: undefined, atividades: undefined, conversas: undefined }))} editavel={!lead.anonimizadoEm} />
         </div>
       </div>
     </div>

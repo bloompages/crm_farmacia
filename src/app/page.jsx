@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { resumoComercial, analiseRejeicoes, serieSemanal, funilComValor } from "@/lib/metricas";
+import { resumoComercial, analiseRejeicoes, serieSemanal, funilComValor, resumoAtendimento, leadsPorDia, aniversariantes } from "@/lib/metricas";
 import { brl, dataHora, corEtapa, labelEtapa } from "@/lib/constantes";
-import { GraficoResultado, GraficoFunil, GraficoMotivos, GraficoOrigens } from "@/components/Graficos";
+import { GraficoResultado, GraficoFunil, GraficoMotivos, GraficoOrigens, GraficoLeadsDia } from "@/components/Graficos";
 import { CANAL, chipFiltro } from "@/lib/tema";
 import { descreverMensagem } from "@/lib/conversa";
 import { previaTexto } from "@/lib/formatacao";
 import PainelBoard from "@/components/PainelBoard";
+import { manutencao } from "@/lib/manutencao";
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +27,29 @@ const LinkAcao = ({ href, children }) => (
 
 /** Arranjo inicial das listas (o usuário reorganiza e o navegador lembra). */
 const LAYOUT_PADRAO = [
-  ["em-aberto", "novos-leads", "ganho", "perdido", "conversao"],
-  ["resultado-semana", "funil"],
-  ["motivos", "origens", "quentes", "ultimas"],
+  ["atendimento", "em-aberto", "novos-leads", "ganho", "perdido", "conversao"],
+  ["leads-dia", "resultado-semana", "funil"],
+  ["motivos", "origens", "quentes", "aniversariantes", "ultimas"],
 ];
 
+/** Mini-indicador dentro de um cartão com vários números. */
+const Numero = ({ rotulo, valor, href, alerta = false }) => {
+  const corpo = (
+    <>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{rotulo}</div>
+      <div className={`text-2xl font-semibold leading-tight ${alerta ? "text-rose-600" : "text-slate-900"}`} style={{ fontVariantNumeric: "tabular-nums" }}>{valor}</div>
+    </>
+  );
+  return href ? <Link href={href} className="block rounded-lg p-1 hover:bg-slate-50">{corpo}</Link> : <div className="p-1">{corpo}</div>;
+};
+
 export default async function Painel({ searchParams }) {
+  await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const sp = await searchParams;
   const dias = Number(sp?.dias ?? 30);
   const semanas = dias <= 7 ? 4 : dias <= 30 ? 8 : 12;
 
-  const [r, rej, semanal, funil, quentes, ultimas] = await Promise.all([
+  const [r, rej, semanal, funil, quentes, ultimas, atend, porDia, aniver] = await Promise.all([
     resumoComercial(dias),
     analiseRejeicoes(dias),
     serieSemanal(semanas),
@@ -52,9 +65,69 @@ export default async function Painel({ searchParams }) {
       take: 5,
       include: { conversa: true },
     }),
+    resumoAtendimento(dias),
+    leadsPorDia(dias),
+    aniversariantes(7),
   ]);
 
   const cartoes = [
+    {
+      id: "atendimento",
+      titulo: "Atendimento",
+      descricao: `Conversas nos últimos ${r.dias} dias · ${atend.mensagens} mensagem(ns)`,
+      acao: <LinkAcao href="/inbox">abrir inbox</LinkAcao>,
+      conteudo: (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Numero rotulo="No período" valor={atend.noPeriodo} />
+            <Numero rotulo="Em aberto" valor={atend.emAberto} href="/inbox" />
+            <Numero rotulo="Encerradas" valor={atend.encerradas} />
+            <Numero rotulo="Sem resposta" valor={atend.semResposta} href="/inbox" alerta={atend.semResposta > 0} />
+          </div>
+          {atend.porCanal.length > 0 && (
+            <div className="space-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500">
+              {atend.porCanal.map((c) => (
+                <div key={c.canal} className="flex items-center gap-2">
+                  <span className={`h-1.5 w-1.5 rounded-full ${CANAL[c.canal]?.ponto ?? "bg-slate-300"}`} />
+                  {CANAL[c.canal]?.rotulo ?? c.canal}
+                  <span className="ml-auto font-medium text-slate-700" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {c.total} · {Math.round((c.total / Math.max(1, atend.noPeriodo)) * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "leads-dia",
+      titulo: "Novos leads por dia",
+      descricao: `Últimos ${r.dias} dias`,
+      acao: <LinkAcao href="/leads">ver leads</LinkAcao>,
+      conteudo: <GraficoLeadsDia dados={porDia} />,
+    },
+    {
+      id: "aniversariantes",
+      titulo: "Aniversariantes",
+      descricao: "Próximos 7 dias — mensagem só para quem autorizou contato",
+      conteudo:
+        aniver.length === 0 ? (
+          <p className="text-sm text-slate-400">Ninguém faz aniversário nos próximos 7 dias.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {aniver.map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-2 py-2">
+                <Link href={`/leads/${l.id}`} className="min-w-0 truncate text-sm font-medium text-slate-800 hover:text-emerald-700">{l.nome}</Link>
+                <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
+                  {l.emDias === 0 ? <b className="text-emerald-700">hoje 🎂</b> : l.proximo.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                  {!l.consentimentoMarketing && <span className="chip border-slate-200 bg-white text-slate-400" title="Sem consentimento LGPD para contato ativo">sem consentimento</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ),
+    },
     {
       id: "em-aberto",
       titulo: "Em aberto no funil",

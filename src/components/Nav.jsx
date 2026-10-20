@@ -11,16 +11,27 @@ const ITENS = [
   { href: "/relatorios", label: "Perdas", icone: "◔" },
 ];
 
-export default function Nav() {
+export default function Nav({ usuario }) {
   const path = usePathname();
+  const itens = [
+    ...ITENS,
+    { href: "/configuracoes", label: "Configurações", icone: "⚙" },
+    { href: "/equipe", label: usuario.papel === "GERENTE" ? "Equipe e LGPD" : "Minha conta", icone: "☺" },
+  ];
+
+  async function sair() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    window.location.assign("/login");
+  }
+
   return (
-    <aside className="w-56 shrink-0 border-r border-slate-200 bg-white p-4">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
       <div className="mb-6 px-2">
         <div className="text-lg font-semibold tracking-tight text-emerald-700">CRM Farmácia</div>
         <div className="text-xs text-slate-400">comercial + atendimento</div>
       </div>
       <nav className="space-y-1">
-        {ITENS.map((i) => {
+        {itens.map((i) => {
           const ativo = i.href === "/" ? path === "/" : path.startsWith(i.href);
           return (
             <Link
@@ -36,6 +47,11 @@ export default function Nav() {
           );
         })}
       </nav>
+      <div className="mt-auto border-t border-slate-100 px-2 pt-3 text-xs">
+        <div className="truncate font-medium text-slate-700">{usuario.nome}</div>
+        <div className="truncate text-slate-400">{usuario.papel === "GERENTE" ? "Gerente" : usuario.cargo}</div>
+        <button onClick={sair} className="mt-2 text-emerald-700 hover:underline">Sair</button>
+      </div>
     </aside>
   );
 }

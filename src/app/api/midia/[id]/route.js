@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { obterProvedor } from "@/lib/integrations";
 import { nomeArquivo } from "@/lib/conversa";
+import { auditarLeitura } from "@/lib/auditoria";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ export async function GET(req, { params }) {
   const baixar = new URL(req.url).searchParams.get("baixar") === "1";
   const m = await db.mensagem.findUnique({ where: { id }, include: { conversa: { select: { canal: true } } } });
   if (!m || (!m.midiaId && !m.midiaUrl)) return new Response("anexo não encontrado", { status: 404 });
+  // anexos costumam ser receitas e fotos de embalagem: dado de saúde (LGPD art. 11)
+  await auditarLeitura("VER_ANEXO", { entidade: "Mensagem", entidadeId: m.id, detalhe: `${m.tipo} da conversa ${m.conversaId}` });
 
   // Localização: só redireciona para o mapa
   if (m.tipo === "LOCALIZACAO" && m.midiaUrl) return Response.redirect(m.midiaUrl, 302);
