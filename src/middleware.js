@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { COOKIE_SESSAO, HEADER_USUARIO, validarSessao } from "./lib/auth.js";
 
 /**
- * Porta de entrada única: toda página e API exige sessão válida, exceto o login
- * e os webhooks da Meta (que têm assinatura própria). Roda no runtime Node para
+ * Porta de entrada única: toda página e API exige sessão válida, exceto o login, a política de
+ * privacidade (exigida pela Meta) e os webhooks da Meta (que têm assinatura própria). Roda no runtime Node para
  * validar a sessão no banco — desativar um usuário corta o acesso na hora.
  */
-const PUBLICAS = [/^\/login$/, /^\/api\/auth\/login$/, /^\/api\/webhooks\/(whatsapp|instagram)$/];
+const PUBLICAS = [/^\/login$/, /^\/privacidade$/, /^\/api\/auth\/login$/, /^\/api\/webhooks\/(whatsapp|instagram)$/];
 
 export async function middleware(req) {
   const { pathname, search } = req.nextUrl;

@@ -47,7 +47,7 @@ No build de produção, `scripts/preparar-producao.mjs`:
 1. roda `prisma db push` — cria/atualiza as tabelas. Uma mudança de schema que apagaria dados **derruba o build** em vez de apagar; nesse caso, faça a migração à mão.
 2. cria o primeiro gerente a partir de `GERENTE_EMAIL` / `GERENTE_SENHA_INICIAL` (e `GERENTE_NOME`), só se esse e-mail ainda não existir — nunca redefine senha. Depois do primeiro acesso, troque a senha e pode apagar `GERENTE_SENHA_INICIAL` da Vercel.
 
-Deploys de preview não mexem no banco. Variáveis de produção: `PROVEDOR_MENSAGERIA` (hoje `mock`), `META_VERIFY_TOKEN` e `META_APP_SECRET` (obrigatórias em produção; ver *Integrações de mensageria*). Para criar outros usuários ou redefinir senhas em produção, rode `npm run usuario:criar` com a `DATABASE_URL` de produção (copiada do painel da Vercel › Storage).
+Deploys de preview não mexem no banco. Variáveis de produção: `CHAVE_CRIPTOGRAFIA` e `META_APP_SECRET` (ver *Integrações de mensageria*). Os dados da farmácia e o WhatsApp são configurados pela tela, não por variáveis. Para criar a instância de uma farmácia nova, siga [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md). Para criar outros usuários ou redefinir senhas em produção, rode `npm run usuario:criar` com a `DATABASE_URL` de produção (copiada do painel da Vercel › Storage).
 
 ## Acesso e LGPD
 
@@ -71,7 +71,9 @@ Deploys de preview não mexem no banco. Variáveis de produção: `PROVEDOR_MENS
 | `/orcamentos/[id]` | Detalhe, fechamento como aceito ou rejeitado (rejeição exige motivo) |
 | `/inbox` | Conversas de WhatsApp e Instagram em abas **Abertas / Sem resposta / Todas / Fechadas**, filtros **só as minhas**, **quentes** e **sem resposta +24h**; na lista, o sinal de compra da última mensagem ("pediu orçamento", "quer comprar") e as etiquetas; botão **Resolver** (a conversa reabre sozinha se o cliente escrever de novo); etiquetas do lead no cabeçalho; **mensagens rápidas** com `/atalho`; anexos, status de entrega, janela de 24h, filtros "precisa responder", barra de sincronização e botão **Aprovar** com o valor da venda (soma das linhas "Total" da conversa, editável no ✎; ao aprovar, o lead vai para Aprovado e o orçamento em aberto vira aceito com esse valor) |
 | `/relatorios` | Perda por motivo em R$, concorrentes que mais tiram venda, lista detalhada |
-| `/configuracoes` | Central de configurações: mensagens rápidas, etiquetas, planilhas e equipe |
+| `/configuracoes` | Central de configurações: farmácia e integrações, mensagens rápidas, etiquetas, planilhas e equipe |
+| `/configuracoes/farmacia` | Só gerente: roteiro de implantação, dados da farmácia, conexão do WhatsApp/Instagram com "Testar conexão", dados para colar na Meta e links da política de privacidade |
+| `/privacidade` | Política de privacidade pública (sem login), exigida pela Meta, com os dados da farmácia preenchidos na tela de configuração |
 | `/configuracoes/mensagens-rapidas` | Cadastro das respostas prontas |
 | `/configuracoes/etiquetas` | Etiquetas em uso com contagem; gerente renomeia, junta e remove em todos os leads |
 | `/configuracoes/planilhas` | Exportar leads, orçamentos (por status) e catálogo de produtos; importar leads e produtos (só gerente) |
@@ -130,25 +132,17 @@ Orçamento com validade vencida vira `EXPIRADO` e sai do "valor em aberto". Essa
 
 ## Integrações de mensageria
 
-A troca de provedor é feita pelo `.env`, sem mexer no CRM:
+Cada farmácia tem a própria instância do CRM (ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md)). O gerente conecta o WhatsApp e o Instagram pela tela **Configurações › Farmácia e integrações** (`/configuracoes/farmacia`), sem mexer na Vercel:
 
-```
-PROVEDOR_MENSAGERIA="mock"   # simulador local (padrão)
-PROVEDOR_MENSAGERIA="meta"   # WhatsApp Cloud API + Instagram Messaging
-```
+1. Cola a *identificação do número de telefone* e o *token*. O token fica cifrado no banco (AES-256-GCM com `CHAVE_CRIPTOGRAFIA`) e nunca volta inteiro para o navegador.
+2. Clica em **Testar conexão**. O CRM consulta a Meta sem enviar mensagem e mostra o número e o nome verificado.
+3. Copia a URL de callback e o *verificar token* (gerado pelo CRM) para a tela de Webhooks da Meta e assina o campo `messages`.
 
-Para ir a produção com a Meta:
+Assim que existe WhatsApp ou Instagram configurado, o CRM passa a usar a Meta. `PROVEDOR_MENSAGERIA` só serve para forçar o simulador (`mock`) no desenvolvimento; em produção, não defina. As variáveis antigas (`WHATSAPP_TOKEN`, `META_VERIFY_TOKEN`, `PRIVACIDADE_*` etc.) continuam valendo quando o campo correspondente da tela está vazio.
 
-1. Preencha `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TOKEN`, `INSTAGRAM_ACCOUNT_ID`, `INSTAGRAM_TOKEN` e `META_VERIFY_TOKEN` no `.env`.
-2. Publique o app com HTTPS e cadastre os webhooks no painel da Meta:
-   - WhatsApp → `https://SEU_DOMINIO/api/webhooks/whatsapp`
-   - Instagram → `https://SEU_DOMINIO/api/webhooks/instagram`
-   - O `GET` de verificação já responde ao `hub.challenge` usando `META_VERIFY_TOKEN`.
-3. Troque `PROVEDOR_MENSAGERIA` para `meta`.
+Em produção (`NODE_ENV=production`) o CRM **recusa webhooks sem assinatura**: `META_APP_SECRET` é obrigatório, e a barra do inbox avisa se faltar. Para rodar `npm run simular` contra um build de produção, exporte o mesmo `META_APP_SECRET` no terminal; o simulador assina as requisições.
 
-Em produção (`NODE_ENV=production`) o CRM **recusa webhooks sem assinatura** e não usa o verify token padrão: `META_APP_SECRET` e `META_VERIFY_TOKEN` são obrigatórios, e a barra do inbox avisa se faltarem. Para rodar `npm run simular` contra um build de produção, exporte o mesmo `META_APP_SECRET` no terminal; o simulador assina as requisições.
-
-O parser do formato oficial da Meta já está escrito em `src/lib/integrations/meta.js` (mensagens de todos os tipos, anexos, eventos de status e template); mensagens duplicadas são descartadas pelo `idExterno`. Preencha `META_APP_SECRET` para validar a assinatura dos webhooks e `WHATSAPP_TEMPLATE_REABERTURA` com o nome do template aprovado para reabrir conversas após 24h. Para outro provedor (Evolution API, Twilio, Z-API), basta criar um arquivo com `enviar`, `baixarMidia` e `normalizarWebhook` e registrá-lo em `src/lib/integrations/index.js`.
+O parser do formato oficial da Meta está em `src/lib/integrations/meta.js` (mensagens de todos os tipos, anexos, eventos de status e template); mensagens duplicadas são descartadas pelo `idExterno`. Para outro provedor (Evolution API, Twilio, Z-API), basta criar um arquivo com `enviar`, `baixarMidia` e `normalizarWebhook` e registrá-lo em `src/lib/integrations/index.js`.
 
 Auditoria dos webhooks: `GET /api/webhooks/eventos?status=ERRO|OK|TODOS` lista os eventos gravados; `POST /api/webhooks/eventos` com `{ "id": "..." }` ou `{ "todos": true }` reprocessa.
 

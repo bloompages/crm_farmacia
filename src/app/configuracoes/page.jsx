@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { usuarioAtual, ehGerente } from "@/lib/usuario";
 import { contarEtiquetas } from "@/lib/etiquetas";
+import { etapasImplantacao } from "@/lib/configuracao";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +34,12 @@ function Secao({ titulo, children }) {
 export default async function Configuracoes() {
   const usuario = await usuarioAtual();
   const gerente = ehGerente(usuario);
-  const [rapidas, comEtiqueta, leads, produtos] = await Promise.all([
+  const [rapidas, comEtiqueta, leads, produtos, implantacao] = await Promise.all([
     db.mensagemRapida.count(),
     db.lead.findMany({ where: { etiquetas: { not: "" } }, select: { etiquetas: true } }),
     db.lead.count({ where: { anonimizadoEm: null } }),
     db.produto.count(),
+    etapasImplantacao(),
   ]);
   const etiquetas = contarEtiquetas(comEtiqueta).length;
 
@@ -45,8 +47,19 @@ export default async function Configuracoes() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-sm text-slate-500">Atendimento, dados e equipe.</p>
+        <p className="text-sm text-slate-500">Farmácia, atendimento, dados e equipe.</p>
       </header>
+
+      <Secao titulo="Farmácia">
+        <Item
+          href="/configuracoes/farmacia"
+          icone="✚"
+          titulo="Farmácia e integrações"
+          descricao="Dados da farmácia, conexão com o WhatsApp e o Instagram, e política de privacidade."
+          detalhe={implantacao.feitas === implantacao.total ? "implantação concluída" : `implantação: ${implantacao.feitas} de ${implantacao.total} etapas`}
+          bloqueado={!gerente}
+        />
+      </Secao>
 
       <Secao titulo="Atendimento">
         <Item

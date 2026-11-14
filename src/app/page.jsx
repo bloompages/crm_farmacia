@@ -8,6 +8,8 @@ import { descreverMensagem } from "@/lib/conversa";
 import { previaTexto } from "@/lib/formatacao";
 import PainelBoard from "@/components/PainelBoard";
 import { manutencao } from "@/lib/manutencao";
+import { usuarioAtual, ehGerente } from "@/lib/usuario";
+import { etapasImplantacao } from "@/lib/configuracao";
 
 export const dynamic = "force-dynamic";
 
@@ -248,8 +250,20 @@ export default async function Painel({ searchParams }) {
     },
   ];
 
+  // roteiro de implantação: só o gerente vê, até a farmácia estar pronta para atender
+  const implantacao = ehGerente(await usuarioAtual()) ? await etapasImplantacao() : null;
+  const pendente = implantacao?.etapas.find((e) => !e.feito);
+
   return (
     <div className="space-y-4">
+      {pendente && (
+        <Link href="/configuracoes/farmacia" className="aviso aviso-marca flex flex-wrap items-center justify-between gap-2 text-sm hover:bg-emerald-100/60">
+          <span>
+            <strong>Implantação: {implantacao.feitas} de {implantacao.total} etapas.</strong> Próxima: {pendente.titulo.toLowerCase()}.
+          </span>
+          <span className="font-medium">Continuar →</span>
+        </Link>
+      )}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Painel comercial</h1>

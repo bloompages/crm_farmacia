@@ -57,4 +57,5 @@ export const ROTULO_ACAO = {
   SENHA_ALTERADA: "trocou a própria senha",
   EXPORTAR_CSV: "exportou planilha",
   IMPORTAR_CSV: "importou planilha",
+  CONFIGURACAO_ALTERADA: "alterou a configuração da farmácia",
 };

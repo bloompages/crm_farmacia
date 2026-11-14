@@ -1,10 +1,12 @@
 import { provedorMock } from "./mock.js";
 import { provedorMeta } from "./meta.js";
+import { obterConfiguracao, nomeProvedorDe } from "../configuracao.js";
 
 /**
  * Camada de integração de mensageria.
- * Todo o CRM fala com esta interface; trocar de provedor é só mudar
- * PROVEDOR_MENSAGERIA no .env (mock -> meta) e preencher as credenciais.
+ * Todo o CRM fala com esta interface. A Meta entra sozinha assim que o gerente conecta o
+ * WhatsApp ou o Instagram em Configurações › Farmácia e integrações. PROVEDOR_MENSAGERIA
+ * (mock | meta), quando definida, força um dos dois (ver nomeProvedorDe).
  *
  * Contrato do provedor:
  *   nome: string
@@ -14,7 +16,6 @@ import { provedorMeta } from "./meta.js";
  *     { tipoEvento: "MENSAGEM", canal, contatoExterno, nomeExibicao, texto, tipo, midia, idExterno, enviadoEm }
  *     { tipoEvento: "STATUS",   canal, idExterno, status, erro, em }
  */
-export function obterProvedor() {
-  const escolhido = (process.env.PROVEDOR_MENSAGERIA || "mock").toLowerCase();
-  return escolhido === "meta" ? provedorMeta : provedorMock;
+export async function obterProvedor() {
+  return nomeProvedorDe(await obterConfiguracao()) === "meta" ? provedorMeta : provedorMock;
 }

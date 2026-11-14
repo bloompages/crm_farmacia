@@ -189,7 +189,7 @@ export async function reenviarMensagem(mensagemId) {
 }
 
 async function despachar(mensagem, conversa, template) {
-  const provedor = obterProvedor();
+  const provedor = await obterProvedor();
   const janela = janela24h(conversa);
 
   // Aviso antecipado: fora da janela o WhatsApp só aceita template. Ainda assim tentamos —
@@ -238,18 +238,20 @@ async function despachar(mensagem, conversa, template) {
 /** Diagnóstico de sincronização exibido no inbox. */
 export async function saudeSincronizacao() {
   const ha24h = new Date(Date.now() - 24 * 3600 * 1000);
-  const [ultimoEvento, errosEventos, mensagensFalhas, ultimaRecebida] = await Promise.all([
+  const [ultimoEvento, errosEventos, mensagensFalhas, ultimaRecebida, provedor, alertas] = await Promise.all([
     db.eventoWebhook.findFirst({ orderBy: { recebidoEm: "desc" }, select: { recebidoEm: true, status: true } }),
     db.eventoWebhook.count({ where: { status: "ERRO" } }),
     db.mensagem.count({ where: { direcao: "SAIDA", status: "FALHOU", enviadoEm: { gte: ha24h } } }),
     db.mensagem.findFirst({ where: { direcao: "ENTRADA" }, orderBy: { enviadoEm: "desc" }, select: { enviadoEm: true } }),
+    obterProvedor(),
+    alertasConfiguracao(),
   ]);
   return {
-    provedor: obterProvedor().nome,
+    provedor: provedor.nome,
     ultimoWebhookEm: ultimoEvento?.recebidoEm ?? null,
     ultimaRecebidaEm: ultimaRecebida?.enviadoEm ?? null,
     eventosComErro: errosEventos,
-    alertas: alertasConfiguracao(),
+    alertas,
     mensagensFalhas,
     agora: new Date(),
   };

@@ -10,27 +10,27 @@ datasource db {
 
 /// Usuário do CRM (atendente / vendedor da farmácia)
 model User {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  cargo     String   @default("Atendente")
-  papel     String   @default("ATENDENTE")   // GERENTE | ATENDENTE (ver src/lib/auth.js)
-  senhaHash String?                         // scrypt; sem senha = não consegue entrar
-  ativo     Boolean  @default(true)          // desativar derruba as sessões abertas
+  id            String    @id @default(cuid())
+  nome          String
+  email         String    @unique
+  cargo         String    @default("Atendente")
+  papel         String    @default("ATENDENTE") // GERENTE | ATENDENTE (ver src/lib/auth.js)
+  senhaHash     String? // scrypt; sem senha = não consegue entrar
+  ativo         Boolean   @default(true) // desativar derruba as sessões abertas
   ultimoLoginEm DateTime?
-  createdAt DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
-  leads     Lead[]
+  leads      Lead[]
   orcamentos Orcamento[]
   atividades Atividade[]
-  mensagens Mensagem[]
-  sessoes   Sessao[]
-  auditoria Auditoria[]
+  mensagens  Mensagem[]
+  sessoes    Sessao[]
+  auditoria  Auditoria[]
 }
 
 /// Sessão de login. O cookie leva um token aleatório; aqui fica só o hash dele.
 model Sessao {
-  id        String   @id                    // sha256 do token do cookie
+  id        String   @id // sha256 do token do cookie
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiraEm  DateTime
@@ -46,8 +46,8 @@ model Auditoria {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  acao       String                          // LOGIN | LOGIN_FALHOU | LOGOUT | VER_LEAD | VER_ANEXO | EXPORTAR_TITULAR | ANONIMIZAR_TITULAR | EXCLUIR_LEAD | ...
-  entidade   String?                         // Lead | Orcamento | Mensagem | User
+  acao       String // LOGIN | LOGIN_FALHOU | LOGOUT | VER_LEAD | VER_ANEXO | EXPORTAR_TITULAR | ANONIMIZAR_TITULAR | EXCLUIR_LEAD | ...
+  entidade   String? // Lead | Orcamento | Mensagem | User
   entidadeId String?
   detalhe    String?
   ip         String?
@@ -59,42 +59,42 @@ model Auditoria {
 
 /// Lead = pessoa/empresa com potencial de compra
 model Lead {
-  id            String   @id @default(cuid())
-  nome          String
-  telefone      String?  @unique
-  email         String?
-  documento     String?
-  tipo          String   @default("PF")      // PF | PJ (clínica, consultório, convênio)
-  empresa       String?
-  origem        String   @default("MANUAL")  // WHATSAPP | INSTAGRAM | INDICACAO | BALCAO | SITE | MANUAL
-  etapa         String   @default("NOVO")    // NOVO | ORCAMENTO | APROVADO | PERDIDO
-  temperatura   String   @default("FRIO")    // QUENTE | MORNO | FRIO
-  score         Int      @default(0)         // score atual = scoreBase esfriado desde scoreEm (ver intencao.js)
-  scoreBase     Int      @default(0)         // score no momento da última mensagem com sinal
-  scoreEm       DateTime @default(now())
-  interesses    String   @default("")        // lista separada por vírgula (ex.: manipulados,dermocosméticos)
-  etiquetas     String   @default("")        // etiquetas livres em minúsculas, separadas por vírgula (ver src/lib/etiquetas.js)
-  dataNascimento DateTime?                   // aniversário (lembrete e oferta, se houver consentimento)
-  convenio      String?                      // plano de saúde / convênio / PBM
-  observacoes   String?
-  motivoPerda   String?
+  id                     String    @id @default(cuid())
+  nome                   String
+  telefone               String?   @unique
+  email                  String?
+  documento              String?
+  tipo                   String    @default("PF") // PF | PJ (clínica, consultório, convênio)
+  empresa                String?
+  origem                 String    @default("MANUAL") // WHATSAPP | INSTAGRAM | INDICACAO | BALCAO | SITE | MANUAL
+  etapa                  String    @default("NOVO") // NOVO | ORCAMENTO | APROVADO | PERDIDO
+  temperatura            String    @default("FRIO") // QUENTE | MORNO | FRIO
+  score                  Int       @default(0) // score atual = scoreBase esfriado desde scoreEm (ver intencao.js)
+  scoreBase              Int       @default(0) // score no momento da última mensagem com sinal
+  scoreEm                DateTime  @default(now())
+  interesses             String    @default("") // lista separada por vírgula (ex.: manipulados,dermocosméticos)
+  etiquetas              String    @default("") // etiquetas livres em minúsculas, separadas por vírgula (ver src/lib/etiquetas.js)
+  dataNascimento         DateTime? // aniversário (lembrete e oferta, se houver consentimento)
+  convenio               String? // plano de saúde / convênio / PBM
+  observacoes            String?
+  motivoPerda            String?
   /// consentimento para contato ativo (lembrete de recompra, ofertas) — base legal LGPD art. 7º, I
-  consentimentoMarketing Boolean @default(false)
+  consentimentoMarketing Boolean   @default(false)
   consentimentoEm        DateTime?
-  anonimizadoEm DateTime?                    // dados pessoais apagados a pedido do titular
-  busca         String   @default("")        // nome/empresa/e-mail sem acento e minúsculo (ver src/lib/busca.js)
-  valorAprovado Float?                       // valor fechado ao aprovar na conversa (soma dos "Total" ou editado pelo atendente)
-  primeiroContatoEm DateTime @default(now())
-  ultimoContatoEm   DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  anonimizadoEm          DateTime? // dados pessoais apagados a pedido do titular
+  busca                  String    @default("") // nome/empresa/e-mail sem acento e minúsculo (ver src/lib/busca.js)
+  valorAprovado          Float? // valor fechado ao aprovar na conversa (soma dos "Total" ou editado pelo atendente)
+  primeiroContatoEm      DateTime  @default(now())
+  ultimoContatoEm        DateTime  @default(now())
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   responsavelId String?
-  responsavel   User?    @relation(fields: [responsavelId], references: [id])
+  responsavel   User?   @relation(fields: [responsavelId], references: [id])
 
-  conversas     Conversa[]
-  orcamentos    Orcamento[]
-  atividades    Atividade[]
+  conversas  Conversa[]
+  orcamentos Orcamento[]
+  atividades Atividade[]
 
   @@index([etapa])
   @@index([origem])
@@ -103,50 +103,50 @@ model Lead {
 
 /// Conversa = thread de um canal (WhatsApp ou Instagram) com um contato
 model Conversa {
-  id            String   @id @default(cuid())
-  canal         String                        // WHATSAPP | INSTAGRAM
-  contatoExterno String                       // telefone E.164 ou @usuario do IG
-  nomeExibicao  String?
-  busca         String   @default("")         // nome + contato sem acento (ver src/lib/busca.js)
-  status        String   @default("ABERTA")   // ABERTA | AGUARDANDO | FECHADA
-  naoLidas      Int      @default(0)
-  ultimaMsgEm   DateTime @default(now())
+  id                 String    @id @default(cuid())
+  canal              String // WHATSAPP | INSTAGRAM
+  contatoExterno     String // telefone E.164 ou @usuario do IG
+  nomeExibicao       String?
+  busca              String    @default("") // nome + contato sem acento (ver src/lib/busca.js)
+  status             String    @default("ABERTA") // ABERTA | AGUARDANDO | FECHADA
+  naoLidas           Int       @default(0)
+  ultimaMsgEm        DateTime  @default(now())
   /// última mensagem ENVIADA PELO CLIENTE — base da janela de 24h do WhatsApp
   ultimaMsgClienteEm DateTime?
-  createdAt     DateTime @default(now())
+  createdAt          DateTime  @default(now())
 
-  leadId        String?
-  lead          Lead?    @relation(fields: [leadId], references: [id])
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
 
-  mensagens     Mensagem[]
+  mensagens Mensagem[]
 
   @@unique([canal, contatoExterno])
   @@index([status])
 }
 
 model Mensagem {
-  id           String   @id @default(cuid())
-  conversaId   String
-  conversa     Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
-  direcao      String                        // ENTRADA | SAIDA
-  tipo         String   @default("TEXTO")    // TEXTO | IMAGEM | AUDIO | VIDEO | DOCUMENTO | FIGURINHA | LOCALIZACAO | CONTATO | INTERATIVA | TEMPLATE | OUTRO
-  texto        String                        // corpo ou legenda; para mídia sem legenda, descrição amigável
-  textoBusca   String   @default("")         // texto sem acento e minúsculo, para a busca do inbox
-  idExterno    String?  @unique
-  intencao     String?                       // COMPRA | ORCAMENTO | DUVIDA | RECLAMACAO | OUTRO
-  scoreIntencao Int     @default(0)
+  id            String   @id @default(cuid())
+  conversaId    String
+  conversa      Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  direcao       String // ENTRADA | SAIDA
+  tipo          String   @default("TEXTO") // TEXTO | IMAGEM | AUDIO | VIDEO | DOCUMENTO | FIGURINHA | LOCALIZACAO | CONTATO | INTERATIVA | TEMPLATE | OUTRO
+  texto         String // corpo ou legenda; para mídia sem legenda, descrição amigável
+  textoBusca    String   @default("") // texto sem acento e minúsculo, para a busca do inbox
+  idExterno     String?  @unique
+  intencao      String? // COMPRA | ORCAMENTO | DUVIDA | RECLAMACAO | OUTRO
+  scoreIntencao Int      @default(0)
   /// ENTRADA: RECEBIDA. SAIDA: ENVIANDO | ENVIADA | ENTREGUE | LIDA | FALHOU
-  status       String   @default("RECEBIDA")
-  erro         String?                       // motivo da falha de envio (texto legível para o atendente)
-  autorId      String?                       // SAIDA: quem respondeu
-  autor        User?    @relation(fields: [autorId], references: [id], onDelete: SetNull)
+  status        String   @default("RECEBIDA")
+  erro          String? // motivo da falha de envio (texto legível para o atendente)
+  autorId       String? // SAIDA: quem respondeu
+  autor         User?    @relation(fields: [autorId], references: [id], onDelete: SetNull)
   /// anexo: id no provedor, mime, nome original, tamanho e (quando houver) URL direta
-  midiaId      String?
-  midiaMime    String?
-  midiaNome    String?
-  midiaTamanho Int?
-  midiaUrl     String?
-  enviadoEm    DateTime @default(now())
+  midiaId       String?
+  midiaMime     String?
+  midiaNome     String?
+  midiaTamanho  Int?
+  midiaUrl      String?
+  enviadoEm     DateTime @default(now())
 
   @@index([conversaId, enviadoEm])
   @@index([status])
@@ -154,15 +154,15 @@ model Mensagem {
 
 /// Todo POST recebido nos webhooks fica gravado: nada se perde, dá para auditar e reprocessar.
 model EventoWebhook {
-  id           String   @id @default(cuid())
-  canal        String                        // WHATSAPP | INSTAGRAM
+  id           String    @id @default(cuid())
+  canal        String // WHATSAPP | INSTAGRAM
   provedor     String
-  payload      String                        // JSON bruto
-  status       String   @default("PENDENTE") // PENDENTE | OK | ERRO | IGNORADO
-  mensagens    Int      @default(0)          // quantas mensagens foram extraídas
+  payload      String // JSON bruto
+  status       String    @default("PENDENTE") // PENDENTE | OK | ERRO | IGNORADO
+  mensagens    Int       @default(0) // quantas mensagens foram extraídas
   erro         String?
-  tentativas   Int      @default(0)
-  recebidoEm   DateTime @default(now())
+  tentativas   Int       @default(0)
+  recebidoEm   DateTime  @default(now())
   processadoEm DateTime?
 
   @@index([status])
@@ -173,35 +173,35 @@ model EventoWebhook {
 model Produto {
   id        String  @id @default(cuid())
   nome      String
-  categoria String  @default("Medicamento")  // Medicamento | Manipulado | Dermocosmético | Suplemento | Perfumaria
+  categoria String  @default("Medicamento") // Medicamento | Manipulado | Dermocosmético | Suplemento | Perfumaria
   preco     Float
   ativo     Boolean @default(true)
 
-  itens     ItemOrcamento[]
+  itens ItemOrcamento[]
 }
 
 model Orcamento {
-  id            String   @id @default(cuid())
-  numero        Int      @unique
-  leadId        String
-  lead          Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  status        String   @default("RASCUNHO") // RASCUNHO | ENVIADO | ACEITO | REJEITADO | EXPIRADO
-  desconto      Float    @default(0)
-  total         Float    @default(0)
-  validadeEm    DateTime?
-  enviadoEm     DateTime?
-  fechadoEm     DateTime?
-  motivoRejeicao String?                      // PRECO | PRAZO_ENTREGA | SEM_ESTOQUE | CONCORRENCIA | SEM_RESPOSTA | DESISTIU | CONVENIO | OUTRO
-  detalheRejeicao String?
-  concorrente   String?
+  id               String    @id @default(cuid())
+  numero           Int       @unique
+  leadId           String
+  lead             Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status           String    @default("RASCUNHO") // RASCUNHO | ENVIADO | ACEITO | REJEITADO | EXPIRADO
+  desconto         Float     @default(0)
+  total            Float     @default(0)
+  validadeEm       DateTime?
+  enviadoEm        DateTime?
+  fechadoEm        DateTime?
+  motivoRejeicao   String? // PRECO | PRAZO_ENTREGA | SEM_ESTOQUE | CONCORRENCIA | SEM_RESPOSTA | DESISTIU | CONVENIO | OUTRO
+  detalheRejeicao  String?
+  concorrente      String?
   precoConcorrente Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   responsavelId String?
-  responsavel   User?    @relation(fields: [responsavelId], references: [id])
+  responsavel   User?   @relation(fields: [responsavelId], references: [id])
 
-  itens         ItemOrcamento[]
+  itens ItemOrcamento[]
 
   @@index([status])
   @@index([motivoRejeicao])
@@ -223,7 +223,7 @@ model ItemOrcamento {
 /// Resposta pronta: digitar "/atalho" no inbox insere o texto ({nome} vira o primeiro nome do contato)
 model MensagemRapida {
   id        String   @id @default(cuid())
-  atalho    String   @unique                 // sem a barra, minúsculo, sem espaço (ex.: "pix")
+  atalho    String   @unique // sem a barra, minúsculo, sem espaço (ex.: "pix")
   texto     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -233,11 +233,35 @@ model Atividade {
   id        String   @id @default(cuid())
   leadId    String
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  tipo      String                          // NOTA | LIGACAO | MENSAGEM | ETAPA | ORCAMENTO
+  tipo      String // NOTA | LIGACAO | MENSAGEM | ETAPA | ORCAMENTO
   descricao String
   autorId   String?
   autor     User?    @relation(fields: [autorId], references: [id])
   createdAt DateTime @default(now())
 
   @@index([leadId])
+}
+
+/// Configuração desta instalação (uma farmácia por instância): dados da farmácia e
+/// integrações. Uma linha só (id "unica"), editada pelo gerente em /configuracoes/farmacia.
+/// Os tokens ficam cifrados com CHAVE_CRIPTOGRAFIA (ver src/lib/cripto.js).
+model Configuracao {
+  id                         String    @id @default("unica")
+  nomeFantasia               String?
+  razaoSocial                String?
+  cnpj                       String?
+  endereco                   String?
+  emailPrivacidade           String?
+  telefone                   String?
+  whatsappPhoneNumberId      String?
+  whatsappToken              String? // cifrado
+  whatsappTemplateReabertura String?
+  whatsappNumeroExibicao     String? // preenchido pelo "Testar conexão"
+  whatsappTestadoEm          DateTime?
+  instagramAccountId         String?
+  instagramToken             String? // cifrado
+  instagramUsuario           String? // preenchido pelo "Testar conexão"
+  instagramTestadoEm         DateTime?
+  metaVerifyToken            String? // gerado automaticamente na primeira leitura
+  atualizadoEm               DateTime  @updatedAt
 }

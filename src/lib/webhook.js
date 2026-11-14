@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "./db.js";
 import { obterProvedor } from "./integrations/index.js";
 import { receberMensagem, atualizarStatusMensagem } from "./mensageria.js";
+import { obterConfiguracao, tokensVerificacaoDe } from "./configuracao.js";
 
 /**
  * Tratamento de webhook resistente a falhas — a raiz dos "erro de sincronização"
@@ -16,12 +17,13 @@ import { receberMensagem, atualizarStatusMensagem } from "./mensageria.js";
  */
 export async function tratarWebhook(req, canal) {
   const bruto = await req.text();
+  const provedor = await obterProvedor();
 
   const assinatura = verificarAssinatura(bruto, req.headers.get("x-hub-signature-256"));
   if (!assinatura.ok) {
     // não guarda o corpo: sem assinatura válida, não se sabe de onde veio
     await db.eventoWebhook.create({
-      data: { canal, provedor: obterProvedor().nome, payload: "", status: "IGNORADO", erro: assinatura.erro },
+      data: { canal, provedor: provedor.nome, payload: "", status: "IGNORADO", erro: assinatura.erro },
     });
     if (assinatura.configuracao) console.error(`[webhook:${canal}] ${assinatura.erro}`);
     return new Response(assinatura.erro, { status: assinatura.configuracao ? 503 : 401 });
@@ -32,13 +34,13 @@ export async function tratarWebhook(req, canal) {
     payload = JSON.parse(bruto);
   } catch {
     await db.eventoWebhook.create({
-      data: { canal, provedor: obterProvedor().nome, payload: bruto.slice(0, 20000), status: "IGNORADO", erro: "Corpo não é JSON" },
+      data: { canal, provedor: provedor.nome, payload: bruto.slice(0, 20000), status: "IGNORADO", erro: "Corpo não é JSON" },
     });
     return NextResponse.json({ erro: "json inválido" }, { status: 200 });
   }
 
   const evento = await db.eventoWebhook.create({
-    data: { canal, provedor: obterProvedor().nome, payload: bruto },
+    data: { canal, provedor: provedor.nome, payload: bruto },
   });
 
   const resultado = await processarEvento(evento.id, payload, canal);
@@ -52,7 +54,7 @@ export async function processarEvento(eventoId, payload, canal) {
   const resultados = [];
 
   try {
-    eventos = obterProvedor().normalizarWebhook(payload, canal);
+    eventos = (await obterProvedor()).normalizarWebhook(payload, canal);
   } catch (e) {
     erros.push(`normalização: ${e?.message ?? e}`);
   }
@@ -99,11 +101,12 @@ export async function reprocessarEvento(eventoId) {
 }
 
 /** Verificação do webhook exigida pela Meta (GET com hub.challenge). */
-export function verificarWebhook(req) {
+export async function verificarWebhook(req) {
   const p = new URL(req.url).searchParams;
-  // em produção não existe token padrão: sem META_VERIFY_TOKEN a verificação sempre falha
-  const esperado = process.env.META_VERIFY_TOKEN || (producao() ? null : "crm-farmacia-verify");
-  if (esperado && p.get("hub.verify_token") === esperado) {
+  // token gerado pelo CRM (tela de configuração) ou META_VERIFY_TOKEN; em produção não há token padrão
+  const aceitos = tokensVerificacaoDe(await obterConfiguracao());
+  const recebido = p.get("hub.verify_token");
+  if (recebido && aceitos.includes(recebido)) {
     return new Response(p.get("hub.challenge") ?? "", { status: 200 });
   }
   return new Response("token inválido", { status: 403 });

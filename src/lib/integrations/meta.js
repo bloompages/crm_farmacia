@@ -1,11 +1,13 @@
+import { credenciaisMeta } from "../configuracao.js";
+
 /**
  * Provedor oficial Meta: WhatsApp Cloud API + Instagram Messaging.
- * Ativar com PROVEDOR_MENSAGERIA="meta" e as credenciais no .env.
+ * As credenciais vêm de Configurações › Farmácia e integrações (ou das variáveis antigas).
  *
  * Webhook a cadastrar no painel da Meta:
  *   WhatsApp  -> https://SEU_DOMINIO/api/webhooks/whatsapp
  *   Instagram -> https://SEU_DOMINIO/api/webhooks/instagram
- * Token de verificação: META_VERIFY_TOKEN
+ * Token de verificação: gerado pelo CRM e mostrado na tela de configuração
  * Assinatura (recomendado): META_APP_SECRET — valida o header X-Hub-Signature-256.
  *
  * O que este provedor entende:
@@ -51,17 +53,27 @@ function traduzirErro(json) {
   return ERROS_CONHECIDOS[e.code] ?? `${e.message ?? "Erro"} (código ${e.code ?? "?"})`;
 }
 
-function credenciais(canal) {
-  if (canal === "WHATSAPP") {
-    const id = process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const token = process.env.WHATSAPP_TOKEN;
-    if (!id || !token) throw new Error("WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_TOKEN não configurados");
-    return { id, token };
+async function credenciais(canal) {
+  const { id, token } = await credenciaisMeta(canal);
+  if (!id || !token) {
+    throw new Error(`${canal === "WHATSAPP" ? "WhatsApp" : "Instagram"} não configurado: o gerente conecta em Configurações › Farmácia e integrações.`);
   }
-  const id = process.env.INSTAGRAM_ACCOUNT_ID;
-  const token = process.env.INSTAGRAM_TOKEN;
-  if (!id || !token) throw new Error("INSTAGRAM_ACCOUNT_ID/INSTAGRAM_TOKEN não configurados");
   return { id, token };
+}
+
+/**
+ * Confere as credenciais direto na Meta, sem enviar mensagem. Devolve o rótulo que a
+ * tela mostra (o número com o nome verificado, ou o @ do Instagram), ou lança Error legível.
+ */
+export async function testarConexaoMeta(canal) {
+  const { id, token } = await credenciais(canal);
+  const campos = canal === "WHATSAPP" ? "display_phone_number,verified_name" : "username,name";
+  const r = await fetch(`${GRAPH}/${id}?fields=${campos}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+  if (!r) throw new Error("Não foi possível falar com a Meta agora. Tente de novo em instantes.");
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(traduzirErro(json));
+  if (canal === "WHATSAPP") return [json.display_phone_number, json.verified_name].filter(Boolean).join(" · ") || id;
+  return json.username ? `@${json.username}` : json.name || id;
 }
 
 export const provedorMeta = {
@@ -72,7 +84,7 @@ export const provedorMeta = {
    * Lança Error com mensagem legível quando a API recusa.
    */
   async enviar({ canal, destino, texto, template }) {
-    const { id, token } = credenciais(canal);
+    const { id, token } = await credenciais(canal);
 
     if (canal === "WHATSAPP") {
       const corpo = template
@@ -115,7 +127,7 @@ export const provedorMeta = {
    * por isso o CRM baixa sob demanda e serve com o mime/nome corretos).
    */
   async baixarMidia({ canal, midiaId, midiaUrl }) {
-    const { token } = credenciais(canal);
+    const { token } = await credenciais(canal);
     let url = midiaUrl;
     let mime = null;
     let tamanho = null;

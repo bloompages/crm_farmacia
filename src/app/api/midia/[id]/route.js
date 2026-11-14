@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
   if (m.tipo === "LOCALIZACAO" && m.midiaUrl) return Response.redirect(m.midiaUrl, 302);
 
   try {
-    const { corpo, mime, tamanho } = await obterProvedor().baixarMidia({
+    const { corpo, mime, tamanho } = await (await obterProvedor()).baixarMidia({
       canal: m.conversa.canal,
       midiaId: m.midiaId,
       midiaUrl: m.midiaUrl,
