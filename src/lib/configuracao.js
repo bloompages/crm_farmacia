@@ -24,16 +24,26 @@ export function limparCacheConfiguracao() {
   cache = null;
 }
 
-/** Linha única de configuração (criada na primeira leitura, já com o token de verificação). */
+/**
+ * Linha única de configuração (criada na primeira leitura, já com o token de verificação).
+ * Fica 30s em memória; chamadas simultâneas na mesma página compartilham a mesma consulta.
+ */
 export async function obterConfiguracao() {
   if (cache && Date.now() - cache.em < CACHE_MS) return cache.valor;
-  let cfg = await db.configuracao.findUnique({ where: { id: "unica" } });
-  if (!cfg) {
-    cfg = await db.configuracao.upsert({ where: { id: "unica" }, create: { id: "unica", metaVerifyToken: novoTokenVerificacao() }, update: {} });
-  } else if (!cfg.metaVerifyToken) {
-    cfg = await db.configuracao.update({ where: { id: "unica" }, data: { metaVerifyToken: novoTokenVerificacao() } });
+  const promessa = carregarConfiguracao();
+  cache = { valor: promessa, em: Date.now() };
+  try {
+    return await promessa;
+  } catch (e) {
+    if (cache?.valor === promessa) cache = null; // não guarda a falha
+    throw e;
   }
-  cache = { valor: cfg, em: Date.now() };
+}
+
+async function carregarConfiguracao() {
+  const cfg = await db.configuracao.findUnique({ where: { id: "unica" } });
+  if (!cfg) return db.configuracao.upsert({ where: { id: "unica" }, create: { id: "unica", metaVerifyToken: novoTokenVerificacao() }, update: {} });
+  if (!cfg.metaVerifyToken) return db.configuracao.update({ where: { id: "unica" }, data: { metaVerifyToken: novoTokenVerificacao() } });
   return cfg;
 }
 
