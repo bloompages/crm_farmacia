@@ -5,7 +5,7 @@
 export const JANELA_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Janela de atendimento de 24h (WhatsApp e Instagram): a farmácia só pode
+ * Janela de atendimento de 24h (WhatsApp e Instagram): a empresa só pode
  * responder livremente até 24h depois da ÚLTIMA mensagem do cliente.
  * Depois disso o WhatsApp exige template aprovado. O CRM NUNCA esconde a
  * conversa — apenas sinaliza o estado da janela.
@@ -33,7 +33,7 @@ export function aguardandoResposta(conversa) {
   return !!ultima && ultima.direcao === "ENTRADA";
 }
 
-/** Sem resposta da farmácia há mais de 24h (o caso "a conversa some" de outros CRMs). */
+/** Sem resposta da empresa há mais de 24h (o caso "a conversa some" de outros CRMs). */
 export function semRespostaHa24h(conversa, agora = Date.now()) {
   return aguardandoResposta(conversa) && !janela24h(conversa, agora).aberta;
 }

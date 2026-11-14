@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cifrar, decifrar } from "@/lib/cripto";
-import { validarConfiguracao, cnpjValido, credenciaisDe, nomeProvedorDe, tokensVerificacaoDe, configuracaoPublica } from "@/lib/configuracao";
+import { segmentoConfigurado, validarConfiguracao, cnpjValido, credenciaisDe, nomeProvedorDe, tokensVerificacaoDe, configuracaoPublica } from "@/lib/configuracao";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -94,3 +94,18 @@ describe("credenciais e provedor", () => {
     expect(pub.whatsappToken).toBe("••••1234");
   });
 });
+
+describe("segmento", () => {
+  it("aceita só segmentos conhecidos", () => {
+    expect(validarConfiguracao({ segmento: "FARMACIA" }).dados.segmento).toBe("FARMACIA");
+    expect(validarConfiguracao({ segmento: "PADARIA_INEXISTENTE" }).erros).toContain("segmento inválido");
+  });
+
+  it("sem segmento (ou desconhecido) vale o geral, sem campos de saúde", () => {
+    expect(segmentoConfigurado({}).id).toBe("GERAL");
+    expect(segmentoConfigurado({ segmento: "XYZ" }).saude).toBe(false);
+    expect(segmentoConfigurado({ segmento: "FARMACIA" }).saude).toBe(true);
+    expect(segmentoConfigurado({ segmento: "FARMACIA" }).categorias).toContain("Manipulado");
+  });
+});
+

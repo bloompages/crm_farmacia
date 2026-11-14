@@ -1,3 +1,4 @@
+import { obterConfiguracao, segmentoConfigurado } from "@/lib/configuracao";
 import { NextResponse } from "next/server";
 import { IMPORTACOES, modeloCsv } from "@/lib/planilhas";
 import { respostaCsv } from "@/lib/csv";
@@ -13,7 +14,7 @@ export async function GET(_req, { params }) {
   if (resposta) return resposta;
   const { tipo } = await params;
   if (!IMPORTACOES[tipo]) return NextResponse.json({ erro: "importação desconhecida" }, { status: 404 });
-  return respostaCsv(modeloCsv(tipo), `modelo-${tipo}`);
+  return respostaCsv(modeloCsv(tipo, segmentoConfigurado(await obterConfiguracao())), `modelo-${tipo}`);
 }
 
 /**

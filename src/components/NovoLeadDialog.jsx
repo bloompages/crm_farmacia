@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ORIGENS } from "@/lib/constantes";
 
-export default function NovoLeadDialog({ etiquetasEmUso = [] }) {
+export default function NovoLeadDialog({ etiquetasEmUso = [], segmento }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -72,10 +72,12 @@ export default function NovoLeadDialog({ etiquetasEmUso = [] }) {
             <label className="label">Aniversário</label>
             <input name="dataNascimento" type="date" className="input" />
           </div>
-          <div>
-            <label className="label">Convênio / plano</label>
-            <input name="convenio" className="input" placeholder="Unimed, Bradesco Saúde, Farmácia Popular…" />
-          </div>
+          {segmento?.saude && (
+            <div>
+              <label className="label">Convênio / plano</label>
+              <input name="convenio" className="input" placeholder={segmento.exemplos?.convenio ?? "Unimed, particular…"} />
+            </div>
+          )}
           <div>
             <label className="label">Etiquetas (separadas por vírgula)</label>
             <input name="etiquetas" className="input" list="etiquetas-em-uso" placeholder="vip, recompra mensal" />
@@ -85,7 +87,7 @@ export default function NovoLeadDialog({ etiquetasEmUso = [] }) {
           </div>
           <div className="sm:col-span-2">
             <label className="label">Interesses (separados por vírgula)</label>
-            <input name="interesses" className="input" placeholder="manipulados, dermocosméticos" />
+            <input name="interesses" className="input" placeholder={segmento?.exemplos?.interesses ?? "produto A, serviço B"} />
           </div>
           <div className="sm:col-span-2">
             <label className="label">Observações</label>

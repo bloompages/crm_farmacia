@@ -250,14 +250,14 @@ export default async function Painel({ searchParams }) {
     },
   ];
 
-  // roteiro de implantação: só o gerente vê, até a farmácia estar pronta para atender
+  // roteiro de implantação: só o gerente vê, até a empresa estar pronta para atender
   const implantacao = ehGerente(await usuarioAtual()) ? await etapasImplantacao() : null;
   const pendente = implantacao?.etapas.find((e) => !e.feito);
 
   return (
     <div className="space-y-4">
       {pendente && (
-        <Link href="/configuracoes/farmacia" className="aviso aviso-marca flex flex-wrap items-center justify-between gap-2 text-sm hover:bg-emerald-100/60">
+        <Link href="/configuracoes/empresa" className="aviso aviso-marca flex flex-wrap items-center justify-between gap-2 text-sm hover:bg-emerald-100/60">
           <span>
             <strong>Implantação: {implantacao.feitas} de {implantacao.total} etapas.</strong> Próxima: {pendente.titulo.toLowerCase()}.
           </span>

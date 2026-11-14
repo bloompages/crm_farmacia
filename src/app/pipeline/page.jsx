@@ -1,3 +1,4 @@
+import { segmentoParaTela } from "@/lib/configuracao";
 import { db } from "@/lib/db";
 import Kanban from "@/components/Kanban";
 import { manutencao } from "@/lib/manutencao";
@@ -6,6 +7,7 @@ import { listaEtiquetas } from "@/lib/etiquetas";
 export const dynamic = "force-dynamic";
 
 export default async function Pipeline() {
+  const segmento = await segmentoParaTela();
   await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const [leads, equipe] = await Promise.all([
     db.lead.findMany({
@@ -43,7 +45,7 @@ export default async function Pipeline() {
           {leads.length} negócio(s) · arraste os cards para mudar a etapa; em "Orçamento enviado", confirme a venda direto no card.
         </p>
       </header>
-      <Kanban leadsIniciais={dados} equipe={equipe} />
+      <Kanban leadsIniciais={dados} equipe={equipe} segmento={segmento} />
     </div>
   );
 }

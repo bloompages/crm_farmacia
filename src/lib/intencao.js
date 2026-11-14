@@ -8,23 +8,27 @@ const SINAIS = [
   { intencao: "ORCAMENTO", peso: 40, termos: ["orçamento", "orcamento", "cotação", "cotacao", "cotar", "faz por quanto", "me passa o valor"] },
   { intencao: "COMPRA", peso: 35, termos: ["quanto custa", "qual o preço", "qual o preco", "preço", "preco", "valor do", "quero comprar", "vou levar", "fecha", "tem pronta entrega"] },
   { intencao: "COMPRA", peso: 30, termos: ["tem disponível", "tem disponivel", "tem em estoque", "chegou", "vocês têm", "voces tem", "vcs tem"] },
-  { intencao: "ORCAMENTO", peso: 30, termos: ["manipulado", "manipulação", "manipulacao", "fórmula", "formula", "receita", "prescrição", "prescricao"] },
   { intencao: "COMPRA", peso: 20, termos: ["entrega", "delivery", "leva em casa", "retirar", "pix", "cartão", "cartao", "parcelar"] },
-  { intencao: "COMPRA", peso: 25, termos: ["convênio", "convenio", "empresa", "cnpj", "clínica", "clinica", "consultório", "consultorio", "para minha equipe", "recorrente", "mensal"] },
-  { intencao: "DUVIDA", peso: 8, termos: ["como usar", "posologia", "serve para", "efeito", "dúvida", "duvida", "horário", "horario", "aberto"] },
+  { intencao: "COMPRA", peso: 25, termos: ["empresa", "cnpj", "para minha equipe", "recorrente", "mensal"] },
+  { intencao: "DUVIDA", peso: 8, termos: ["como usar", "serve para", "efeito", "dúvida", "duvida", "horário", "horario", "aberto"] },
   { intencao: "RECLAMACAO", peso: 5, termos: ["reclamação", "reclamacao", "problema", "errado", "demorou", "péssimo", "pessimo", "cancelar"] },
 ];
 
 const normalizar = (t) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-/** @returns {{intencao: string, score: number, termos: string[]}} */
-export function analisarIntencao(texto) {
+/**
+ * termosOrcamento: palavras do ramo da empresa que indicam pedido de orçamento
+ * (ex.: "manipulado" na farmácia, "consulta" na clínica). Ver src/lib/segmentos.js.
+ * @returns {{intencao: string, score: number, termos: string[]}}
+ */
+export function analisarIntencao(texto, termosOrcamento = []) {
   const alvo = normalizar(texto);
   let score = 0;
   const encontrados = [];
   const pontosPorIntencao = {};
 
-  for (const sinal of SINAIS) {
+  const sinais = termosOrcamento.length ? [...SINAIS, { intencao: "ORCAMENTO", peso: 30, termos: termosOrcamento }] : SINAIS;
+  for (const sinal of sinais) {
     for (const termo of sinal.termos) {
       if (alvo.includes(normalizar(termo))) {
         score += sinal.peso;

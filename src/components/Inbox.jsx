@@ -247,7 +247,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
             })}
             {visiveis.length === 0 && (
               <p className="p-4 text-sm text-slate-400">
-                {conversas.length === 0 ? "Nenhuma conversa ainda. Quando um cliente mandar mensagem no WhatsApp da farmácia, ela aparece aqui." : aba === "ABERTAS" && !soMinhas && !soQuentes && !so24h ? "Nenhuma conversa aberta — tudo resolvido. 🎉" : "Nenhuma conversa neste filtro."}
+                {conversas.length === 0 ? "Nenhuma conversa ainda. Quando um cliente mandar mensagem no WhatsApp da empresa, ela aparece aqui." : aba === "ABERTAS" && !soMinhas && !soQuentes && !so24h ? "Nenhuma conversa aberta — tudo resolvido. 🎉" : "Nenhuma conversa neste filtro."}
               </p>
             )}
           </div>

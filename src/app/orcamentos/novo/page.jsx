@@ -1,3 +1,4 @@
+import { segmentoParaTela } from "@/lib/configuracao";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import FormOrcamento from "@/components/FormOrcamento";
@@ -5,6 +6,7 @@ import FormOrcamento from "@/components/FormOrcamento";
 export const dynamic = "force-dynamic";
 
 export default async function NovoOrcamento({ searchParams }) {
+  const segmento = await segmentoParaTela();
   const sp = await searchParams;
   const [leads, produtos] = await Promise.all([
     db.lead.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, telefone: true } }),
@@ -17,7 +19,7 @@ export default async function NovoOrcamento({ searchParams }) {
         <Link href="/orcamentos" className="text-xs text-slate-400 hover:text-slate-600">← Orçamentos</Link>
         <h1 className="text-2xl font-semibold tracking-tight">Novo orçamento</h1>
       </div>
-      <FormOrcamento leads={leads} produtos={produtos} leadPre={sp?.lead ?? ""} />
+      <FormOrcamento leads={leads} produtos={produtos} leadPre={sp?.lead ?? ""} segmento={segmento} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { formatarTelefone } from "@/lib/telefone";
 
 const linhaVazia = () => ({ key: Math.random().toString(36).slice(2), produtoId: "", descricao: "", quantidade: 1, precoUnit: 0 });
 
-export default function FormOrcamento({ leads, produtos, leadPre }) {
+export default function FormOrcamento({ leads, produtos, leadPre, segmento }) {
   const router = useRouter();
   const [leadId, setLeadId] = useState(leadPre ?? "");
   const [itens, setItens] = useState([linhaVazia()]);
@@ -86,7 +86,7 @@ export default function FormOrcamento({ leads, produtos, leadPre }) {
               </div>
               <div className="col-span-3">
                 <label className="label">Descrição</label>
-                <input className="input" value={i.descricao} onChange={(e) => atualizar(i.key, "descricao", e.target.value)} placeholder="Fórmula manipulada…" />
+                <input className="input" value={i.descricao} onChange={(e) => atualizar(i.key, "descricao", e.target.value)} placeholder={segmento?.exemplos?.item ?? "Descrição do produto ou serviço"} />
               </div>
               <div className="col-span-2">
                 <label className="label">Qtd</label>

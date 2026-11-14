@@ -1,3 +1,4 @@
+import { segmentoParaTela } from "@/lib/configuracao";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -17,6 +18,7 @@ import { contarEtiquetas } from "@/lib/etiquetas";
 export const dynamic = "force-dynamic";
 
 export default async function LeadDetalhe({ params }) {
+  const segmento = await segmentoParaTela();
   await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const { id } = await params;
   const lead = await db.lead.findUnique({
@@ -110,7 +112,7 @@ export default async function LeadDetalhe({ params }) {
                         {o.detalheRejeicao && ` — ${o.detalheRejeicao}`}
                       </p>
                     )}
-                    <div className="mt-2"><OrcamentoAcoes orcamento={o} compacto /></div>
+                    <div className="mt-2"><OrcamentoAcoes orcamento={o} compacto segmento={segmento} /></div>
                   </li>
                 ))}
               </ul>
@@ -143,11 +145,11 @@ export default async function LeadDetalhe({ params }) {
             </div>
           ) : (
             <>
-              <LeadAcoes lead={lead} equipe={equipe} />
+              <LeadAcoes lead={lead} equipe={equipe} segmento={segmento} />
               <LeadPrivacidade lead={lead} gerente={ehGerente(usuario)} />
             </>
           )}
-          <LeadFicha lead={JSON.parse(JSON.stringify({ ...lead, orcamentos: undefined, atividades: undefined, conversas: undefined }))} editavel={!lead.anonimizadoEm} />
+          <LeadFicha lead={JSON.parse(JSON.stringify({ ...lead, orcamentos: undefined, atividades: undefined, conversas: undefined }))} editavel={!lead.anonimizadoEm} segmento={segmento} />
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ETAPAS, MOTIVOS_REJEICAO, ORIGENS, brl, tempoRelativo } from "@/lib/constantes";
+import { motivosRejeicao, ETAPAS, ORIGENS, brl, tempoRelativo } from "@/lib/constantes";
 import { PONTO_TEMPERATURA as TEMP, TOM, chipFiltro } from "@/lib/tema";
 import { formatarTelefone } from "@/lib/telefone";
 import { paraBusca } from "@/lib/busca";
@@ -20,7 +20,7 @@ const iniciais = (nome) => (nome ?? "").split(/\s+/).filter(Boolean).slice(0, 2)
 /** Valor que a coluna soma: aprovado no Aprovado, em aberto nas demais. */
 const valorDoCard = (l) => (l.etapa === "APROVADO" ? l.valorAprovado ?? 0 : l.valorAberto);
 
-export default function Kanban({ leadsIniciais, equipe = [] }) {
+export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
   const router = useRouter();
   const [leads, setLeads] = useState(leadsIniciais);
   const [busca, setBusca] = useState("");
@@ -237,7 +237,7 @@ export default function Kanban({ leadsIniciais, equipe = [] }) {
           <label className="label">Motivo da perda *</label>
           <select className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus>
             <option value="">Selecione…</option>
-            {MOTIVOS_REJEICAO.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            {motivosRejeicao(segmento?.saude).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" className="btn-ghost" onClick={() => setPerda(null)}>Cancelar</button>

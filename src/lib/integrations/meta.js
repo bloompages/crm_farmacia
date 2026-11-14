@@ -2,7 +2,7 @@ import { credenciaisMeta } from "../configuracao.js";
 
 /**
  * Provedor oficial Meta: WhatsApp Cloud API + Instagram Messaging.
- * As credenciais vêm de Configurações › Farmácia e integrações (ou das variáveis antigas).
+ * As credenciais vêm de Configurações › Empresa e integrações (ou das variáveis antigas).
  *
  * Webhook a cadastrar no painel da Meta:
  *   WhatsApp  -> https://SEU_DOMINIO/api/webhooks/whatsapp
@@ -37,8 +37,8 @@ const TIPO_META = {
 
 /** Mensagens de erro da API traduzidas para o atendente. */
 const ERROS_CONHECIDOS = {
-  131047: "Janela de 24h fechada: o cliente não fala com a farmácia há mais de 24h. Use um template aprovado para reabrir a conversa.",
-  131026: "Número não recebe mensagens (pode não ter WhatsApp ou bloqueou a farmácia).",
+  131047: "Janela de 24h fechada: o cliente não fala com a empresa há mais de 24h. Use um template aprovado para reabrir a conversa.",
+  131026: "Número não recebe mensagens (pode não ter WhatsApp ou bloqueou a empresa).",
   131030: "Número não está na lista de destinatários permitidos do app em modo de testes.",
   131051: "Tipo de mensagem não suportado pelo WhatsApp.",
   130429: "Limite de envio atingido no momento. Tente novamente em instantes.",
@@ -56,7 +56,7 @@ function traduzirErro(json) {
 async function credenciais(canal) {
   const { id, token, wabaId } = await credenciaisMeta(canal);
   if (!id || !token) {
-    throw new Error(`${canal === "WHATSAPP" ? "WhatsApp" : "Instagram"} não configurado: o gerente conecta em Configurações › Farmácia e integrações.`);
+    throw new Error(`${canal === "WHATSAPP" ? "WhatsApp" : "Instagram"} não configurado: o gerente conecta em Configurações › Empresa e integrações.`);
   }
   return { id, token, wabaId };
 }
@@ -72,7 +72,7 @@ async function graph(caminho, token, opcoes = {}) {
 /**
  * Confere as credenciais direto na Meta, sem enviar mensagem. Devolve
  * { rotulo, avisos }: o rótulo que a tela mostra (o número com o nome verificado, ou o @
- * do Instagram) e, no WhatsApp, o que ainda impede a farmácia de atender. Lança Error
+ * do Instagram) e, no WhatsApp, o que ainda impede a empresa de atender. Lança Error
  * legível só quando o número ou o token não funcionam.
  */
 export async function testarConexaoMeta(canal) {
@@ -125,7 +125,7 @@ export async function inscreverWaba(phoneId, token, wabaId) {
   }
 }
 
-/** Bloqueios que a Meta informa no health_status, traduzidos com o que a farmácia precisa fazer. */
+/** Bloqueios que a Meta informa no health_status, traduzidos com o que a empresa precisa fazer. */
 const BLOQUEIOS = {
   141006: "Falta forma de pagamento na conta do WhatsApp Business. No Meta Business Suite: Configurações › Contas do WhatsApp › Pagamentos.",
   141010: "A empresa ainda não foi verificada pela Meta. No Meta Business Suite: Configurações › Central de segurança › Verificação da empresa (pede cartão CNPJ e comprovante de endereço).",
@@ -139,7 +139,7 @@ export function avisosDeSaude(saude) {
   const textos = codigos.map((c) => BLOQUEIOS[c] ?? erros.find((e) => e.error_code === c)?.error_description ?? `Bloqueio ${c}`);
   if (!textos.length) return [];
   return [
-    "A Meta está bloqueando mensagens iniciadas pela farmácia (templates e conversas com mais de 24h sem resposta do cliente). Responder quem escreveu nas últimas 24h funciona normalmente. Para liberar:",
+    "A Meta está bloqueando mensagens iniciadas pela empresa (templates e conversas com mais de 24h sem resposta do cliente). Responder quem escreveu nas últimas 24h funciona normalmente. Para liberar:",
     ...textos.map((t) => `• ${t}`),
   ];
 }
@@ -339,7 +339,7 @@ function extrairConteudoInstagram(message) {
   const anexo = message.attachments?.[0];
   if (!anexo) return { tipo: "TEXTO", texto, midia: null };
   const tipo = { image: "IMAGEM", video: "VIDEO", audio: "AUDIO", file: "DOCUMENTO", share: "OUTRO", story_mention: "OUTRO", reel: "VIDEO" }[anexo.type] ?? "OUTRO";
-  const descricao = { share: "Compartilhou uma publicação", story_mention: "Mencionou a farmácia em um story" }[anexo.type];
+  const descricao = { share: "Compartilhou uma publicação", story_mention: "Mencionou a empresa em um story" }[anexo.type];
   return {
     tipo,
     texto: texto || descricao || "",

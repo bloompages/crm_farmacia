@@ -6,7 +6,7 @@ import { auditar } from "@/lib/auditoria";
 
 /**
  * Altera papel, cargo, nome, ativo ou redefine a senha. Desativar ou trocar a senha
- * derruba as sessões abertas da pessoa. A farmácia nunca fica sem gerente ativo.
+ * derruba as sessões abertas da pessoa. A empresa nunca fica sem gerente ativo.
  */
 export async function PATCH(req, { params }) {
   const { usuario, resposta } = await exigirUsuario("GERENTE");

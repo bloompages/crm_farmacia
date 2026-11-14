@@ -1,19 +1,20 @@
 import { RETENCAO_WEBHOOK_DIAS } from "@/lib/manutencao";
-import { obterConfiguracao, dadosFarmaciaDe } from "@/lib/configuracao";
+import { obterConfiguracao, dadosEmpresaDe, segmentoConfigurado } from "@/lib/configuracao";
 
 /**
  * Política de privacidade pública (sem login). A Meta exige esta URL para
  * publicar o app do WhatsApp/Instagram; a seção #exclusao serve também como
  * "URL de instruções de exclusão de dados" no painel da Meta.
  *
- * Os dados da farmácia vêm de Configurações › Farmácia e integrações (ou das
- * variáveis PRIVACIDADE_* antigas) e valem na hora, sem novo deploy.
+ * Os dados da empresa vêm de Configurações › Empresa e integrações (ou das
+ * variáveis PRIVACIDADE_* antigas) e valem na hora, sem novo deploy. Os trechos de
+ * dados de saúde (LGPD art. 11) só aparecem nos segmentos de saúde.
  */
 export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Política de Privacidade",
-  description: "Como tratamos os dados pessoais de quem fala com a farmácia pelo WhatsApp, Instagram e balcão.",
+  description: "Como tratamos os dados pessoais de quem fala com a empresa pelo WhatsApp, Instagram e balcão.",
 };
 
 const ATUALIZADA_EM = "14 de novembro de 2026";
@@ -32,8 +33,10 @@ function Secao({ id, titulo, children }) {
 }
 
 export default async function Privacidade() {
-  const c = dadosFarmaciaDe(await obterConfiguracao());
-  const nome = c.nome ?? <Faltando campo="nome da farmácia" />;
+  const cfg = await obterConfiguracao();
+  const c = dadosEmpresaDe(cfg);
+  const { saude } = segmentoConfigurado(cfg);
+  const nome = c.nome ?? <Faltando campo="nome da empresa" />;
   const email = c.email ? <a className="text-emerald-700 underline" href={`mailto:${c.email}`}>{c.email}</a> : <Faltando campo="e-mail" />;
 
   return (
@@ -60,9 +63,9 @@ export default async function Privacidade() {
       <Secao id="dados" titulo="2. Quais dados coletamos">
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>Identificação e contato:</strong> nome, telefone, nome de perfil do WhatsApp ou Instagram, e-mail e, quando necessário para orçamento ou nota, CPF/CNPJ.</li>
-          <li><strong>Atendimento:</strong> mensagens trocadas conosco, imagens e arquivos enviados (por exemplo, foto de receita), orçamentos e histórico de compras.</li>
-          <li><strong>Informações opcionais:</strong> data de nascimento, convênio ou plano de saúde e produtos de interesse.</li>
-          <li><strong>Dados de saúde:</strong> receitas e menções a medicamentos são dados sensíveis. Só os usamos para atender o seu pedido e cumprir as normas sanitárias.</li>
+          <li><strong>Atendimento:</strong> mensagens trocadas conosco, imagens e arquivos enviados{saude && " (por exemplo, foto de receita ou pedido médico)"}, orçamentos e histórico de compras.</li>
+          <li><strong>Informações opcionais:</strong> data de nascimento{saude && ", convênio ou plano de saúde"} e produtos ou serviços de interesse.</li>
+          {saude && <li><strong>Dados de saúde:</strong> receitas, pedidos médicos e menções a medicamentos ou tratamentos são dados sensíveis. Só os usamos para atender o seu pedido e cumprir as normas sanitárias.</li>}
         </ul>
         <p>Não compramos listas de contatos e não coletamos dados de quem não falou conosco.</p>
       </Secao>
@@ -70,7 +73,7 @@ export default async function Privacidade() {
       <Secao id="finalidades" titulo="3. Para que usamos e com qual base legal">
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>Responder você, fazer orçamentos e concluir a venda</strong> — execução de contrato e procedimentos preliminares (art. 7º, V).</li>
-          <li><strong>Conferir receitas e cumprir regras da Anvisa e da vigilância sanitária</strong> — cumprimento de obrigação legal ou regulatória (art. 7º, II e art. 11, II, “a”).</li>
+          {saude && <li><strong>Conferir receitas e cumprir regras da Anvisa e da vigilância sanitária</strong> — cumprimento de obrigação legal ou regulatória (art. 7º, II e art. 11, II, “a”).</li>}
           <li><strong>Lembretes de recompra, aniversário e ofertas</strong> — somente com o seu consentimento (art. 7º, I), que pode ser retirado a qualquer momento.</li>
           <li><strong>Organizar o atendimento interno</strong> (qual atendente cuida do seu pedido, histórico) — legítimo interesse (art. 7º, IX), sempre limitado ao necessário.</li>
         </ul>
@@ -97,7 +100,7 @@ export default async function Privacidade() {
         </p>
         <p>
           Os dados de cadastro e o histórico de atendimento são mantidos enquanto houver relacionamento com você ou enquanto
-          a lei exigir (por exemplo, registros fiscais e sanitários). Depois disso, ou a seu pedido, são apagados ou anonimizados.
+          a lei exigir (por exemplo, registros fiscais{saude && " e sanitários"}). Depois disso, ou a seu pedido, são apagados ou anonimizados.
         </p>
       </Secao>
 

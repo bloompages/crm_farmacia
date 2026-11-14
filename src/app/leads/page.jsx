@@ -1,3 +1,4 @@
+import { segmentoParaTela } from "@/lib/configuracao";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ETAPAS, ORIGENS, corEtapa, labelEtapa, dataCurta } from "@/lib/constantes";
@@ -12,6 +13,7 @@ import { contarEtiquetas, listaEtiquetas } from "@/lib/etiquetas";
 export const dynamic = "force-dynamic";
 
 export default async function Leads({ searchParams }) {
+  const segmento = await segmentoParaTela();
   await manutencao(); // expira orçamentos vencidos e esfria scores antes de mostrar números
   const sp = await searchParams;
   const { etapa, origem, q, meus, etiqueta } = sp ?? {};
@@ -54,7 +56,7 @@ export default async function Leads({ searchParams }) {
               <Link href="/configuracoes/planilhas" className="btn-ghost">⇧ Importar</Link>
             </>
           )}
-          <NovoLeadDialog etiquetasEmUso={etiquetas.map((e) => e.nome)} />
+          <NovoLeadDialog etiquetasEmUso={etiquetas.map((e) => e.nome)} segmento={segmento} />
         </div>
       </header>
 

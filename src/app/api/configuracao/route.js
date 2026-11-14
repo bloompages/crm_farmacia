@@ -5,7 +5,7 @@ import { obterConfiguracao, salvarConfiguracao, configuracaoPublica } from "@/li
 
 export const dynamic = "force-dynamic";
 
-/** Configuração da farmácia (só gerente). Os tokens voltam mascarados. */
+/** Configuração da empresa (só gerente). Os tokens voltam mascarados. */
 export async function GET() {
   const { resposta } = await exigirUsuario("GERENTE");
   if (resposta) return resposta;

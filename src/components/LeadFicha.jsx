@@ -22,7 +22,7 @@ function idade(d) {
 }
 
 /** Ficha do lead com edição dos dados cadastrais (inclui "corrigir número"). */
-export default function LeadFicha({ lead, editavel = true }) {
+export default function LeadFicha({ lead, editavel = true, segmento }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -60,7 +60,7 @@ export default function LeadFicha({ lead, editavel = true }) {
           <div><label className="label">E-mail</label><input name="email" type="email" defaultValue={lead.email ?? ""} className="input" /></div>
           <div><label className="label">CPF/CNPJ</label><input name="documento" defaultValue={lead.documento ?? ""} className="input" /></div>
           <div><label className="label">Aniversário</label><input name="dataNascimento" type="date" defaultValue={paraInputData(lead.dataNascimento)} className="input" /></div>
-          <div><label className="label">Convênio / plano</label><input name="convenio" defaultValue={lead.convenio ?? ""} className="input" /></div>
+          {segmento?.saude && <div><label className="label">Convênio / plano</label><input name="convenio" defaultValue={lead.convenio ?? ""} className="input" /></div>}
           <div><label className="label">Empresa</label><input name="empresa" defaultValue={lead.empresa ?? ""} className="input" /></div>
           <div>
             <label className="label">Tipo</label>
@@ -108,7 +108,7 @@ export default function LeadFicha({ lead, editavel = true }) {
         {linha("Tipo", lead.tipo)}
         {linha("CPF/CNPJ", lead.documento)}
         {linha("Aniversário", lead.dataNascimento && `${new Date(lead.dataNascimento).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}${anos ? ` · ${anos} anos` : ""}`)}
-        {linha("Convênio", lead.convenio)}
+        {(segmento?.saude || lead.convenio) && linha("Convênio", lead.convenio)}
         {linha("Empresa", lead.empresa)}
         {linha("Interesses", lead.interesses)}
         {linha("Último contato", dataCurta(lead.ultimoContatoEm))}

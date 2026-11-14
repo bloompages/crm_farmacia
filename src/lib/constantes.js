@@ -8,13 +8,13 @@ export const ETAPAS = [
 ];
 
 export const MOTIVOS_REJEICAO = [
-  { id: "PRECO", label: "Preço acima do esperado", acao: "Rever margem / oferecer genérico ou similar" },
+  { id: "PRECO", label: "Preço acima do esperado", acao: "Rever margem / oferecer alternativa mais em conta" },
   { id: "CONCORRENCIA", label: "Comprou do concorrente", acao: "Mapear preço praticado e criar contra-oferta" },
-  { id: "SEM_ESTOQUE", label: "Sem estoque no prazo", acao: "Ajustar compras e curva ABC do item" },
-  { id: "PRAZO_ENTREGA", label: "Prazo de entrega longo", acao: "Revisar logística / entrega no mesmo dia" },
+  { id: "SEM_ESTOQUE", label: "Sem estoque ou sem agenda no prazo", acao: "Ajustar compras, estoque ou agenda" },
+  { id: "PRAZO_ENTREGA", label: "Prazo de entrega longo", acao: "Revisar logística, entrega ou prazo de atendimento" },
   { id: "SEM_RESPOSTA", label: "Cliente não respondeu", acao: "Cadência de follow-up em 24h/72h/7d" },
   { id: "DESISTIU", label: "Desistiu da compra", acao: "Pesquisar motivo real na régua de reativação" },
-  { id: "CONVENIO", label: "Conseguiu pelo convênio/SUS", acao: "Ofertar itens fora da cobertura" },
+  { id: "CONVENIO", label: "Conseguiu pelo convênio/SUS", acao: "Ofertar itens fora da cobertura", saude: true },
   { id: "OUTRO", label: "Outro motivo", acao: "Detalhar na observação" },
 ];
 
@@ -24,6 +24,9 @@ export const STATUS_ORCAMENTO = ["RASCUNHO", "ENVIADO", "ACEITO", "REJEITADO", "
 
 export const labelEtapa = (id) => ETAPAS.find((e) => e.id === id)?.label ?? id;
 export const corEtapa = (id) => ETAPAS.find((e) => e.id === id)?.cor ?? TOM.neutro;
+/** Motivos que a equipe pode escolher: o "convênio" só faz sentido nos segmentos de saúde. */
+export const motivosRejeicao = (saude = false) => MOTIVOS_REJEICAO.filter((m) => saude || !m.saude);
+
 export const labelMotivo = (id) => MOTIVOS_REJEICAO.find((m) => m.id === id)?.label ?? id ?? "—";
 
 export const brl = (v) =>

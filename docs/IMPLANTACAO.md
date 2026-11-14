@@ -1,4 +1,6 @@
-# Implantação de uma farmácia nova
+# Implantação de um cliente novo
+
+O CRM serve para qualquer segmento. Na tela de configuração o cliente escolhe o **segmento** (Farmácia, Clínica, Loja, Serviços ou Outro). O segmento ajusta as categorias de produto, as palavras que indicam pedido de orçamento, o campo de convênio e a política de privacidade. Os exemplos abaixo falam em "farmácia", mas valem para qualquer empresa.
 
 Modelo: **uma instância por farmácia**. Cada cliente tem o próprio projeto na Vercel, um banco só dele e um endereço próprio. Os dados de uma farmácia nunca ficam no mesmo banco que os de outra.
 
@@ -7,7 +9,7 @@ O trabalho está dividido para pesar pouco:
 | Quem | O quê | Onde | Tempo |
 |---|---|---|---|
 | Fornecedor (nós) | Criar a instância: projeto, banco e 4 variáveis | Painel da Vercel | ~10 min, uma vez por cliente |
-| Gerente da farmácia (com a nossa ajuda na primeira vez) | Dados da farmácia, WhatsApp, template, equipe | Tela **Configurações › Farmácia e integrações** do CRM | ~30 min |
+| Gerente da farmácia (com a nossa ajuda na primeira vez) | Dados da farmácia, WhatsApp, template, equipe | Tela **Configurações › Empresa e integrações** do CRM | ~30 min |
 | Ninguém | Atualizações do CRM | Automático a cada push (ver *Atualizações*) | — |
 
 ---
@@ -34,9 +36,9 @@ Confira: abra `https://<dominio>/login`, entre como gerente e veja o aviso **"Im
 
 ## 2. Configurar a farmácia (gerente, pela tela)
 
-Em **Configurações › Farmácia e integrações**, o roteiro mostra o que falta:
+Em **Configurações › Empresa e integrações**, o roteiro mostra o que falta:
 
-1. **Dados da farmácia:** nome fantasia, razão social, CNPJ, e-mail de privacidade, endereço e telefone. O **nome fantasia é o nome do sistema para a equipe**: aparece no menu, na tela de login e na aba do navegador. A política de privacidade pública (`/privacidade`) é preenchida com esses dados na hora.
+1. **Dados da empresa:** segmento, nome fantasia, razão social, CNPJ, e-mail de privacidade, endereço e telefone. O **nome fantasia é o nome do sistema para a equipe**: aparece no menu, na tela de login e na aba do navegador. A política de privacidade pública (`/privacidade`) é preenchida com esses dados na hora.
 2. **WhatsApp conectado:** cole a *identificação do número de telefone*, a *identificação da conta do WhatsApp Business* (WABA ID, ao lado do Phone Number ID no painel da Meta) e o *token permanente*, e clique em **Testar conexão**. O teste:
    - inscreve o app na conta do WhatsApp Business (`subscribed_apps`). **Sem essa inscrição a Meta só entrega os testes do painel, nunca as mensagens reais dos clientes**;
    - mostra em português o que a Meta está bloqueando (forma de pagamento, verificação da empresa, perfil incompleto) e onde resolver.

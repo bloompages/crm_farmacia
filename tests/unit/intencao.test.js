@@ -35,3 +35,13 @@ describe("scoreEsfriado", () => {
   });
   it("chega a zero com o tempo", () => expect(scoreEsfriado(80, ha(365))).toBe(0));
 });
+
+describe("analisarIntencao com termos do segmento", () => {
+  it("palavras do ramo só contam quando o segmento as traz", () => {
+    expect(analisarIntencao("vocês fazem manipulado de minoxidil?").intencao).not.toBe("ORCAMENTO");
+    const r = analisarIntencao("vocês fazem manipulado de minoxidil?", ["manipulado"]);
+    expect(r.intencao).toBe("ORCAMENTO");
+    expect(r.termos).toContain("manipulado");
+  });
+});
+

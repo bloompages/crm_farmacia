@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ETAPAS, MOTIVOS_REJEICAO } from "@/lib/constantes";
+import { motivosRejeicao, ETAPAS } from "@/lib/constantes";
 
-export default function LeadAcoes({ lead, equipe = [] }) {
+export default function LeadAcoes({ lead, equipe = [], segmento }) {
   const router = useRouter();
   const [etapa, setEtapa] = useState(lead.etapa);
   const [motivo, setMotivo] = useState(lead.motivoPerda ?? "");
@@ -64,7 +64,7 @@ export default function LeadAcoes({ lead, equipe = [] }) {
           <label className="label">Motivo da perda *</label>
           <select className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
             <option value="">Selecione…</option>
-            {MOTIVOS_REJEICAO.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            {motivosRejeicao(segmento?.saude).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
           <button
             className="btn-danger mt-2 w-full"
@@ -82,7 +82,7 @@ export default function LeadAcoes({ lead, equipe = [] }) {
           className="input"
           rows={3}
           value={nota}
-          placeholder="Ligou pedindo desconto no manipulado…"
+          placeholder={segmento?.exemplos?.nota ?? "Pediu desconto à vista…"}
           onChange={(e) => setNota(e.target.value)}
         />
         <button

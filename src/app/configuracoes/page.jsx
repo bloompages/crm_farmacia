@@ -47,15 +47,15 @@ export default async function Configuracoes() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-sm text-slate-500">Farmácia, atendimento, dados e equipe.</p>
+        <p className="text-sm text-slate-500">Empresa, atendimento, dados e equipe.</p>
       </header>
 
-      <Secao titulo="Farmácia">
+      <Secao titulo="Empresa">
         <Item
-          href="/configuracoes/farmacia"
+          href="/configuracoes/empresa"
           icone="✚"
-          titulo="Farmácia e integrações"
-          descricao="Dados da farmácia, conexão com o WhatsApp e o Instagram, e política de privacidade."
+          titulo="Empresa e integrações"
+          descricao="Dados da empresa, segmento, conexão com o WhatsApp e o Instagram, e política de privacidade."
           detalhe={implantacao.feitas === implantacao.total ? "implantação concluída" : `implantação: ${implantacao.feitas} de ${implantacao.total} etapas`}
           bloqueado={!gerente}
         />

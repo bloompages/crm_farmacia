@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { listaSegmentos } from "@/lib/segmentos";
 
 async function chamar(url, method, body) {
   const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) }).catch(() => null);
@@ -99,26 +100,31 @@ function Rodape({ estado, children }) {
   );
 }
 
-function DadosFarmacia({ cfg, aoSalvar }) {
-  const f = useFormulario(cfg, ["nomeFantasia", "razaoSocial", "cnpj", "endereco", "emailPrivacidade", "telefone"], aoSalvar);
+function DadosEmpresa({ cfg, aoSalvar }) {
+  const f = useFormulario(cfg, ["segmento", "nomeFantasia", "razaoSocial", "cnpj", "endereco", "emailPrivacidade", "telefone"], aoSalvar);
   return (
     <form onSubmit={f.salvar} className="card space-y-3 p-4">
       <div>
-        <h2 className="text-sm font-semibold">Dados da farmácia</h2>
+        <h2 className="text-sm font-semibold">Dados da empresa</h2>
         <p className="text-xs text-slate-500">Aparecem no menu do CRM e na política de privacidade pública, que é exigida pela Meta e pela LGPD.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Campo rotulo="Nome fantasia" dica="Como a farmácia é conhecida. É o nome do sistema para a equipe: aparece no menu, na tela de login e na aba do navegador.">
-          <input className="input" value={f.valores.nomeFantasia} onChange={f.mudar("nomeFantasia")} maxLength={120} placeholder="Farmácia São João" />
+        <Campo rotulo="Segmento" dica="Ajusta o CRM ao ramo: categorias de produto, palavras que indicam pedido de orçamento, campo de convênio e a política de privacidade.">
+          <select className="input" value={f.valores.segmento} onChange={f.mudar("segmento")}>
+            {listaSegmentos().map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+        </Campo>
+        <Campo rotulo="Nome fantasia" dica="Como a empresa é conhecida. É o nome do sistema para a equipe: aparece no menu, na tela de login e na aba do navegador.">
+          <input className="input" value={f.valores.nomeFantasia} onChange={f.mudar("nomeFantasia")} maxLength={120} placeholder="Nome da sua empresa" />
         </Campo>
         <Campo rotulo="Razão social *">
-          <input className="input" value={f.valores.razaoSocial} onChange={f.mudar("razaoSocial")} maxLength={160} placeholder="Drogaria São João Ltda." />
+          <input className="input" value={f.valores.razaoSocial} onChange={f.mudar("razaoSocial")} maxLength={160} placeholder="Empresa Exemplo Ltda." />
         </Campo>
         <Campo rotulo="CNPJ *">
           <input className="input" value={f.valores.cnpj} onChange={f.mudar("cnpj")} inputMode="numeric" placeholder="00.000.000/0001-00" />
         </Campo>
         <Campo rotulo="E-mail para assuntos de privacidade *" dica="Para onde os clientes mandam pedidos de exclusão de dados.">
-          <input className="input" type="email" value={f.valores.emailPrivacidade} onChange={f.mudar("emailPrivacidade")} placeholder="privacidade@farmacia.com.br" />
+          <input className="input" type="email" value={f.valores.emailPrivacidade} onChange={f.mudar("emailPrivacidade")} placeholder="privacidade@suaempresa.com.br" />
         </Campo>
         <Campo rotulo="Endereço">
           <input className="input" value={f.valores.endereco} onChange={f.mudar("endereco")} maxLength={300} placeholder="Rua, número, bairro, cidade/UF" />
@@ -241,7 +247,7 @@ function Canal({ canal, cfg, origem, aoSalvar }) {
   );
 }
 
-export default function ConfiguracaoFarmacia({ inicial, implantacao, origem }) {
+export default function ConfiguracaoEmpresa({ inicial, implantacao, origem }) {
   const router = useRouter();
   const [cfg, setCfg] = useState(inicial);
   const aoSalvar = (novo) => {
@@ -252,7 +258,7 @@ export default function ConfiguracaoFarmacia({ inicial, implantacao, origem }) {
   return (
     <div className="space-y-4">
       <Etapas implantacao={implantacao} />
-      <DadosFarmacia cfg={cfg} aoSalvar={aoSalvar} />
+      <DadosEmpresa cfg={cfg} aoSalvar={aoSalvar} />
       <Canal canal="WHATSAPP" cfg={cfg} origem={origem} aoSalvar={aoSalvar} />
       <details className="group">
         <summary className="cursor-pointer text-sm text-slate-500 hover:text-slate-700">Instagram (opcional)</summary>

@@ -1,16 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { db } from "./db.js";
 import { cifrar, decifrar, criptografiaDisponivel } from "./cripto.js";
+import { SEGMENTOS, SEGMENTO_PADRAO, segmentoDe } from "./segmentos.js";
 
 /**
- * Configuração da instalação: dados da farmácia e integrações com a Meta.
+ * Configuração da instalação: dados da empresa, segmento e integrações com a Meta.
  *
- * Cada farmácia tem a própria instância do CRM, e o gerente preenche tudo pela tela
- * /configuracoes/farmacia, sem mexer na Vercel. Para manter a compatibilidade, as
+ * Cada empresa cliente tem a própria instância do CRM, e o gerente preenche tudo pela tela
+ * /configuracoes/empresa, sem mexer na Vercel. Para manter a compatibilidade, as
  * variáveis antigas (WHATSAPP_TOKEN, PRIVACIDADE_* etc.) ainda valem quando o campo
  * correspondente está vazio no banco. O valor do banco sempre tem prioridade.
  *
- * Continuam só na Vercel, porque são da instalação e não da farmácia:
+ * Continuam só na Vercel, porque são da instalação e não da empresa:
  *   DATABASE_URL, CHAVE_CRIPTOGRAFIA, META_APP_SECRET (do app da Meta do fornecedor).
  */
 
@@ -90,8 +91,8 @@ export function tokensVerificacaoDe(cfg) {
   return lista;
 }
 
-/** Dados da farmácia para a política de privacidade e o cabeçalho. */
-export function dadosFarmaciaDe(cfg) {
+/** Dados da empresa para a política de privacidade e o cabeçalho. */
+export function dadosEmpresaDe(cfg) {
   return {
     nomeFantasia: cfg?.nomeFantasia || null,
     nome: cfg?.razaoSocial || cfg?.nomeFantasia || env("PRIVACIDADE_CONTROLADOR"),
@@ -103,7 +104,7 @@ export function dadosFarmaciaDe(cfg) {
 }
 
 /**
- * Nome exibido no menu, no login e na aba do navegador: o nome fantasia que a farmácia
+ * Nome exibido no menu, no login e na aba do navegador: o nome fantasia que a empresa
  * cadastra na tela. NOME_PADRAO só aparece enquanto ele não foi preenchido.
  */
 export const NOME_PADRAO = "CRM";
@@ -117,6 +118,15 @@ export async function nomeExibicao() {
   }
 }
 
+/** Segmento da empresa (ver src/lib/segmentos.js), com o id junto. */
+export const segmentoConfigurado = (cfg) => ({ id: SEGMENTOS[cfg?.segmento] ? cfg.segmento : SEGMENTO_PADRAO, ...segmentoDe(cfg?.segmento) });
+
+/** Segmento para as telas: só o que os componentes precisam (vai para o navegador). */
+export async function segmentoParaTela() {
+  const { id, nome, saude, categorias, exemplos } = segmentoConfigurado(await obterConfiguracao().catch(() => null));
+  return { id, nome, saude, categorias, exemplos };
+}
+
 export const templateReaberturaDe = (cfg) => cfg?.whatsappTemplateReabertura || env("WHATSAPP_TEMPLATE_REABERTURA");
 
 const mascarar = (token) => (token ? `••••${token.slice(-4)}` : null);
@@ -127,6 +137,7 @@ export function configuracaoPublica(cfg) {
   const ig = credenciaisDe(cfg, "INSTAGRAM");
   const tokenIlegivel = (campo) => Boolean(cfg?.[campo]) && !decifrar(cfg[campo]);
   return {
+    segmento: segmentoConfigurado(cfg).id,
     nomeFantasia: cfg.nomeFantasia ?? "",
     razaoSocial: cfg.razaoSocial ?? "",
     cnpj: cfg.cnpj ?? "",
@@ -174,6 +185,12 @@ export function validarConfiguracao(entrada = {}) {
     const v = texto(k);
     if (v.length > max) erros.push(`${k}: no máximo ${max} caracteres`);
     dados[k] = v || null;
+  }
+
+  if (tem("segmento")) {
+    const v = texto("segmento");
+    if (!SEGMENTOS[v]) erros.push("segmento inválido");
+    else dados.segmento = v;
   }
 
   if (tem("cnpj")) {
@@ -278,7 +295,7 @@ export async function alertasConfiguracao() {
     alertas.push(
       env("PROVEDOR_MENSAGERIA") === "mock"
         ? "PROVEDOR_MENSAGERIA=mock na Vercel: as mensagens não estão indo para o WhatsApp. Apague essa variável."
-        : "WhatsApp ainda não conectado. O gerente configura em Configurações › Farmácia e integrações."
+        : "WhatsApp ainda não conectado. O gerente configura em Configurações › Empresa e integrações."
     );
   }
   if (!env("META_APP_SECRET")) {
@@ -292,19 +309,19 @@ export async function alertasConfiguracao() {
 }
 
 /**
- * Roteiro de implantação mostrado ao gerente: o que falta para a farmácia
+ * Roteiro de implantação mostrado ao gerente: o que falta para a empresa
  * começar a atender pelo CRM.
  */
 export async function etapasImplantacao() {
   const cfg = await obterConfiguracao();
-  const f = dadosFarmaciaDe(cfg);
+  const f = dadosEmpresaDe(cfg);
   const [webhookMeta, usuarios] = await Promise.all([
     db.eventoWebhook.findFirst({ where: { provedor: "meta", status: { in: ["OK", "IGNORADO"] }, erro: null }, orderBy: { recebidoEm: "desc" }, select: { recebidoEm: true } }),
     db.user.count({ where: { ativo: true } }),
   ]);
   const wa = credenciaisDe(cfg, "WHATSAPP");
   const etapas = [
-    { id: "dados", titulo: "Dados da farmácia", feito: Boolean(f.nome && f.cnpj && f.email), dica: "Razão social, CNPJ e e-mail aparecem na política de privacidade." },
+    { id: "dados", titulo: "Dados da empresa", feito: Boolean(f.nome && f.cnpj && f.email), dica: "Razão social, CNPJ e e-mail aparecem na política de privacidade." },
     { id: "whatsapp", titulo: "WhatsApp conectado", feito: Boolean(temCredenciais(wa) && (cfg.whatsappTestadoEm || !cfg.whatsappPhoneNumberId)), dica: "Cole a identificação do número, a da conta do WhatsApp Business e o token, e clique em Testar conexão." },
     { id: "webhook", titulo: "Mensagens chegando no CRM", feito: Boolean(webhookMeta), dica: "Cadastre a URL do webhook na Meta e mande uma mensagem de teste para o número." },
     { id: "template", titulo: "Template de reabertura", feito: Boolean(templateReaberturaDe(cfg)), dica: "Permite voltar a falar com o cliente depois de 24h sem resposta." },

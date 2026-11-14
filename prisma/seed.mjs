@@ -105,6 +105,8 @@ async function main() {
   await db.orcamento.deleteMany();
   await db.atividade.deleteMany();
   await db.lead.deleteMany();
+  // os dados de demonstração são de uma farmácia: liga o segmento correspondente
+  await db.configuracao.upsert({ where: { id: "unica" }, create: { id: "unica", segmento: "FARMACIA" }, update: { segmento: "FARMACIA" } });
   await db.produto.deleteMany();
   await db.auditoria.deleteMany();
   await db.sessao.deleteMany();

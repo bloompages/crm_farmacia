@@ -5,7 +5,7 @@ import { obterConfiguracao, nomeProvedorDe } from "../configuracao.js";
 /**
  * Camada de integração de mensageria.
  * Todo o CRM fala com esta interface. A Meta entra sozinha assim que o gerente conecta o
- * WhatsApp ou o Instagram em Configurações › Farmácia e integrações. PROVEDOR_MENSAGERIA
+ * WhatsApp ou o Instagram em Configurações › Empresa e integrações. PROVEDOR_MENSAGERIA
  * (mock | meta), quando definida, força um dos dois (ver nomeProvedorDe).
  *
  * Contrato do provedor:

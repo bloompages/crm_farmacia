@@ -75,7 +75,7 @@ model Lead {
   interesses             String    @default("") // lista separada por vírgula (ex.: manipulados,dermocosméticos)
   etiquetas              String    @default("") // etiquetas livres em minúsculas, separadas por vírgula (ver src/lib/etiquetas.js)
   dataNascimento         DateTime? // aniversário (lembrete e oferta, se houver consentimento)
-  convenio               String? // plano de saúde / convênio / PBM
+  convenio               String? // plano de saúde / convênio (só aparece em segmentos de saúde)
   observacoes            String?
   motivoPerda            String?
   /// consentimento para contato ativo (lembrete de recompra, ofertas) — base legal LGPD art. 7º, I
@@ -173,7 +173,7 @@ model EventoWebhook {
 model Produto {
   id        String  @id @default(cuid())
   nome      String
-  categoria String  @default("Medicamento") // Medicamento | Manipulado | Dermocosmético | Suplemento | Perfumaria
+  categoria String  @default("Geral") // sugestões por segmento em src/lib/segmentos.js
   preco     Float
   ativo     Boolean @default(true)
 
@@ -247,6 +247,7 @@ model Atividade {
 /// Os tokens ficam cifrados com CHAVE_CRIPTOGRAFIA (ver src/lib/cripto.js).
 model Configuracao {
   id                         String    @id @default("unica")
+  segmento                   String    @default("GERAL") // ver src/lib/segmentos.js
   nomeFantasia               String?
   razaoSocial                String?
   cnpj                       String?

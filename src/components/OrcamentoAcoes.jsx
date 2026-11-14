@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MOTIVOS_REJEICAO, brl } from "@/lib/constantes";
+import { motivosRejeicao, MOTIVOS_REJEICAO, brl } from "@/lib/constantes";
 
 /** Fecha o orçamento como aceito ou rejeitado — a rejeição sempre exige motivo. */
-export default function OrcamentoAcoes({ orcamento, compacto = false }) {
+export default function OrcamentoAcoes({ orcamento, compacto = false, segmento }) {
   const router = useRouter();
   const [dialogo, setDialogo] = useState(false);
   const [motivo, setMotivo] = useState("");
@@ -50,7 +50,7 @@ export default function OrcamentoAcoes({ orcamento, compacto = false }) {
                 <label className="label">Motivo *</label>
                 <select className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
                   <option value="">Selecione…</option>
-                  {MOTIVOS_REJEICAO.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  {motivosRejeicao(segmento?.saude).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                 </select>
                 {motivo && (
                   <p className="mt-1 text-xs text-emerald-700">

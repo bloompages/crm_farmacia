@@ -1,3 +1,4 @@
+import { segmentoParaTela } from "@/lib/configuracao";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -7,6 +8,7 @@ import OrcamentoAcoes from "@/components/OrcamentoAcoes";
 export const dynamic = "force-dynamic";
 
 export default async function OrcamentoDetalhe({ params }) {
+  const segmento = await segmentoParaTela();
   const { id } = await params;
   const o = await db.orcamento.findUnique({
     where: { id },
@@ -79,7 +81,7 @@ export default async function OrcamentoDetalhe({ params }) {
         </div>
       )}
 
-      <OrcamentoAcoes orcamento={o} />
+      <OrcamentoAcoes orcamento={o} segmento={segmento} />
     </div>
   );
 }

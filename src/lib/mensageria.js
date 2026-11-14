@@ -1,11 +1,12 @@
 import { db } from "./db.js";
 import { obterProvedor } from "./integrations/index.js";
+import { segmentoDe } from "./segmentos.js";
 import { analisarIntencao, temperaturaPorScore, scoreEsfriado, CORTE_OPORTUNIDADE } from "./intencao.js";
 import { normalizarTelefone } from "./telefone.js";
 import { paraBusca, buscaLead, buscaConversa } from "./busca.js";
 import { descreverMensagem, janela24h } from "./conversa.js";
 import { normalizarTexto } from "./formatacao.js";
-import { alertasConfiguracao } from "./configuracao.js";
+import { alertasConfiguracao, obterConfiguracao } from "./configuracao.js";
 
 /**
  * Ingestão de mensagem recebida (qualquer tipo: texto, mídia, botão, localização…):
@@ -20,7 +21,7 @@ export async function receberMensagem(msg) {
   const contato = String(msg.contatoExterno);
   const texto = normalizarTexto(msg.texto ?? "");
   const tipo = msg.tipo ?? "TEXTO";
-  const { intencao, score } = analisarIntencao(texto);
+  const { intencao, score } = analisarIntencao(texto, segmentoDe((await obterConfiguracao().catch(() => null))?.segmento).termosOrcamento);
 
   // Dedup ANTES de mexer em qualquer coisa: a Meta reenvia webhooks quando não recebe 200.
   if (msg.idExterno) {

@@ -1,3 +1,4 @@
+import { obterConfiguracao, segmentoConfigurado } from "./configuracao.js";
 import { db } from "./db.js";
 import { ETAPAS, MOTIVOS_REJEICAO, ORIGENS, labelEtapa, labelMotivo } from "./constantes.js";
 import { gerarCsv, lerCsv, mapearColunas, chaveCabecalho, numeroCsv, dataCsv, lerData, lerSimNao } from "./csv.js";
@@ -135,7 +136,6 @@ export const APELIDOS_PRODUTO = {
   ativo: ["ativo"],
 };
 
-const CATEGORIAS = ["Medicamento", "Manipulado", "Dermocosmético", "Suplemento", "Perfumaria"];
 
 const porChave = (lista, rotulo) => {
   const k = chaveCabecalho(rotulo);
@@ -339,6 +339,10 @@ export async function importarProdutos(texto, { gravar = false, atualizar = true
   const r = novoResultado(lido.colunas);
 
   const atuais = await db.produto.findMany();
+  // categorias conhecidas: as sugeridas pelo segmento da empresa + as que já existem no cadastro
+  const { categorias: doSegmento } = segmentoConfigurado(await obterConfiguracao().catch(() => null));
+  const CATEGORIAS = [...new Set([...doSegmento, ...atuais.map((p) => p.categoria)])];
+  const categoriaPadrao = doSegmento[0];
   const porNome = new Map(atuais.map((p) => [paraBusca(p.nome), p]));
   const vistos = new Map();
   const ops = [];
@@ -360,10 +364,11 @@ export async function importarProdutos(texto, { gravar = false, atualizar = true
       if (!categoria) { categoria = catBruta.slice(0, 40); r.avisos.push({ linha: l.numero, motivo: `categoria nova: ${categoria}` }); }
     }
     const ativoBruto = lido.valor(l, "ativo");
+    if (!categoria && !porNome.get(k)) categoria = categoriaPadrao; // produto novo sem categoria
     const dados = { nome, preco, ...(categoria ? { categoria } : {}), ...(ativoBruto?.trim() ? { ativo: lerSimNao(ativoBruto) } : {}) };
     const existente = porNome.get(k);
     const acao = !existente ? "novo" : atualizar ? "atualizar" : "ignorar";
-    if (r.amostra.length < 10) r.amostra.push({ linha: l.numero, acao, nome, preco: numeroCsv(preco), categoria: categoria ?? existente?.categoria ?? "Medicamento" });
+    if (r.amostra.length < 10) r.amostra.push({ linha: l.numero, acao, nome, preco: numeroCsv(preco), categoria: categoria ?? existente?.categoria });
     if (acao === "novo") { r.novos++; ops.push(() => db.produto.create({ data: dados })); }
     else if (acao === "atualizar") { r.atualizados++; ops.push(() => db.produto.update({ where: { id: existente.id }, data: dados })); }
     else r.ignorados++;
@@ -379,14 +384,14 @@ export const IMPORTACOES = {
 };
 
 /** Planilha modelo: cabeçalho igual ao da exportação + uma linha de exemplo. */
-export function modeloCsv(tipo) {
+export function modeloCsv(tipo, segmento = segmentoConfigurado(null)) {
   if (tipo === "produtos") {
-    return gerarCsv(COLUNAS_PRODUTO, [{ nome: "Dipirona 1g 20cp", categoria: "Medicamento", preco: 12.4, ativo: true }]);
+    return gerarCsv(COLUNAS_PRODUTO, [{ nome: segmento.exemplos.item, categoria: segmento.categorias[0], preco: 12.4, ativo: true }]);
   }
   const exemplo = {
     nome: "Maria Souza", telefone: "5511987654321", email: "maria@email.com", documento: "", tipo: "PF", empresa: "",
     origem: "WHATSAPP", etapa: "NOVO", motivoPerda: null, temperatura: "FRIO", score: 0, etiquetas: "recompra mensal,vip",
-    interesses: "dermocosméticos", dataNascimento: new Date(1985, 4, 20, 12), convenio: "Unimed", responsavel: null,
+    interesses: segmento.exemplos.interesses, dataNascimento: new Date(1985, 4, 20, 12), convenio: segmento.saude ? "Unimed" : "", responsavel: null,
     consentimentoMarketing: true, valorAprovado: null, primeiroContatoEm: null, ultimoContatoEm: null, observacoes: "",
   };
   // colunas calculadas pelo CRM não fazem sentido na planilha de entrada

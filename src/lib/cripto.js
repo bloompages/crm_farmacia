@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 /**
  * Cifra os tokens das integrações guardados no banco (AES-256-GCM). A chave vem de
  * CHAVE_CRIPTOGRAFIA, uma variável da Vercel diferente em cada instalação. Assim, quem
- * vê só o banco (um backup, por exemplo) não consegue usar o token do WhatsApp da farmácia.
+ * vê só o banco (um backup, por exemplo) não consegue usar o token do WhatsApp da empresa.
  *
  * Fora de produção, sem a variável, usa uma chave fixa de desenvolvimento.
  */
