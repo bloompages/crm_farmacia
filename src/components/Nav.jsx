@@ -36,6 +36,7 @@ export default function Nav({ usuario, farmacia }) {
           return (
             <Link
               key={i.href}
+              prefetch={false} // pré-carregar as 8 páginas de uma vez abria conexões demais no banco
               href={i.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
                 ativo ? "bg-emerald-50 font-medium text-emerald-700" : "text-slate-600 hover:bg-slate-50"
