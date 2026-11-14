@@ -39,7 +39,7 @@ export default async function Privacidade() {
   return (
     <article className="mx-auto max-w-2xl space-y-6 py-4 text-sm leading-relaxed text-slate-700">
       <header className="space-y-1">
-        <div className="text-xs font-medium uppercase tracking-wide text-emerald-700">{c.nomeFantasia ?? c.nome ?? "CRM Farmácia"}</div>
+        <div className="text-xs font-medium uppercase tracking-wide text-emerald-700">{c.nomeFantasia ?? c.nome ?? "Política de privacidade"}</div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Política de Privacidade</h1>
         <p className="text-xs text-slate-500">Última atualização: {ATUALIZADA_EM}</p>
       </header>

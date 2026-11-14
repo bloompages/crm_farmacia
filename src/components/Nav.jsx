@@ -27,8 +27,8 @@ export default function Nav({ usuario, farmacia }) {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
       <div className="mb-6 px-2">
-        <div className="truncate text-lg font-semibold tracking-tight text-emerald-700" title={farmacia || undefined}>{farmacia || "CRM Farmácia"}</div>
-        <div className="text-xs text-slate-400">{farmacia ? "CRM · comercial + atendimento" : "comercial + atendimento"}</div>
+        <div className="truncate text-lg font-semibold tracking-tight text-emerald-700" title={farmacia || undefined}>{farmacia || "CRM"}</div>
+        <div className="text-xs text-slate-400">comercial + atendimento</div>
       </div>
       <nav className="space-y-1">
         {itens.map((i) => {

@@ -61,8 +61,8 @@ describe("credenciais e provedor", () => {
     vi.stubEnv("CHAVE_CRIPTOGRAFIA", "k");
     vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "111");
     vi.stubEnv("WHATSAPP_TOKEN", "token-env");
-    expect(credenciaisDe({}, "WHATSAPP")).toEqual({ id: "111", token: "token-env" });
-    expect(credenciaisDe({ whatsappPhoneNumberId: "222", whatsappToken: cifrar("token-banco") }, "WHATSAPP")).toEqual({ id: "222", token: "token-banco" });
+    expect(credenciaisDe({}, "WHATSAPP")).toEqual({ id: "111", token: "token-env", wabaId: null });
+    expect(credenciaisDe({ whatsappPhoneNumberId: "222", whatsappToken: cifrar("token-banco") }, "WHATSAPP")).toEqual({ id: "222", token: "token-banco", wabaId: null });
   });
 
   it("usa a Meta quando há credenciais; PROVEDOR_MENSAGERIA força", () => {

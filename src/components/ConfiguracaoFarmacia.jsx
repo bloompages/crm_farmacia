@@ -108,7 +108,7 @@ function DadosFarmacia({ cfg, aoSalvar }) {
         <p className="text-xs text-slate-500">Aparecem no menu do CRM e na política de privacidade pública, que é exigida pela Meta e pela LGPD.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Campo rotulo="Nome fantasia" dica="Como a farmácia é conhecida. Aparece no menu.">
+        <Campo rotulo="Nome fantasia" dica="Como a farmácia é conhecida. É o nome do sistema para a equipe: aparece no menu, na tela de login e na aba do navegador.">
           <input className="input" value={f.valores.nomeFantasia} onChange={f.mudar("nomeFantasia")} maxLength={120} placeholder="Farmácia São João" />
         </Campo>
         <Campo rotulo="Razão social *">
@@ -140,10 +140,11 @@ function Canal({ canal, cfg, origem, aoSalvar }) {
   const k = wa
     ? { id: "whatsappPhoneNumberId", token: "whatsappToken", testado: "whatsappTestadoEm", rotulo: "whatsappNumeroExibicao", ilegivel: "whatsappTokenIlegivel", vercel: "whatsappDaVercel" }
     : { id: "instagramAccountId", token: "instagramToken", testado: "instagramTestadoEm", rotulo: "instagramUsuario", ilegivel: "instagramTokenIlegivel", vercel: "instagramDaVercel" };
-  const campos = wa ? [k.id, "whatsappTemplateReabertura"] : [k.id];
+  const campos = wa ? [k.id, "whatsappWabaId", "whatsappTemplateReabertura"] : [k.id];
   const f = useFormulario(cfg, campos, aoSalvar);
   const [token, setToken] = useState("");
   const [testando, setTestando] = useState(false);
+  const [avisos, setAvisos] = useState([]);
 
   async function salvar(e) {
     await f.salvar(e, token ? { [k.token]: token } : {});
@@ -152,10 +153,12 @@ function Canal({ canal, cfg, origem, aoSalvar }) {
 
   async function testar() {
     setTestando(true);
+    setAvisos([]);
     f.setEstado({ ocupado: false, erro: "", ok: "" });
     try {
       const r = await chamar("/api/configuracao/testar", "POST", { canal });
       aoSalvar(r.configuracao);
+      setAvisos(r.avisos ?? []);
       f.setEstado({ ocupado: false, erro: "", ok: `Conectado: ${r.rotulo}` });
     } catch (err) {
       f.setEstado({ ocupado: false, erro: err.message, ok: "" });
@@ -201,11 +204,22 @@ function Canal({ canal, cfg, origem, aoSalvar }) {
           <input className="input" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={cfg[k.token] ? "••••••••" : "EAAG…"} />
         </Campo>
         {wa && (
+          <Campo rotulo="Identificação da conta do WhatsApp Business" dica="WABA ID — no painel da Meta fica ao lado do Phone Number ID (“Identificação da conta de mensagens”). Com ele, o Testar conexão libera o recebimento das mensagens.">
+            <input className="input" value={f.valores.whatsappWabaId} onChange={f.mudar("whatsappWabaId")} inputMode="numeric" placeholder="1234567890123456" />
+          </Campo>
+        )}
+        {wa && (
           <Campo rotulo="Template de reabertura" dica="Nome do template aprovado na Meta, usado para voltar a falar com o cliente depois de 24h.">
             <input className="input" value={f.valores.whatsappTemplateReabertura} onChange={f.mudar("whatsappTemplateReabertura")} placeholder="retomar_atendimento" />
           </Campo>
         )}
       </div>
+
+      {avisos.length > 0 && (
+        <div className="aviso aviso-atencao space-y-1 text-sm">
+          {avisos.map((a) => <p key={a}>{a}</p>)}
+        </div>
+      )}
 
       <details className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-sm" open={!conectado}>
         <summary className="cursor-pointer text-xs font-medium text-slate-600">Dados para colar na Meta (Webhooks)</summary>

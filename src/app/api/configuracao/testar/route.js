@@ -12,9 +12,9 @@ export async function POST(req) {
   const { canal } = await req.json().catch(() => ({}));
   if (canal !== "WHATSAPP" && canal !== "INSTAGRAM") return NextResponse.json({ erro: "canal inválido" }, { status: 400 });
   try {
-    const rotulo = await testarConexaoMeta(canal);
+    const { rotulo, avisos } = await testarConexaoMeta(canal);
     await registrarTeste(canal, rotulo);
-    return NextResponse.json({ ok: true, rotulo, configuracao: configuracaoPublica(await obterConfiguracao()) });
+    return NextResponse.json({ ok: true, rotulo, avisos, configuracao: configuracaoPublica(await obterConfiguracao()) });
   } catch (e) {
     return NextResponse.json({ erro: e.message }, { status: 400 });
   }

@@ -254,6 +254,7 @@ model Configuracao {
   emailPrivacidade           String?
   telefone                   String?
   whatsappPhoneNumberId      String?
+  whatsappWabaId             String? // conta do WhatsApp Business: o "Testar conexão" inscreve o app nela
   whatsappToken              String? // cifrado
   whatsappTemplateReabertura String?
   whatsappNumeroExibicao     String? // preenchido pelo "Testar conexão"

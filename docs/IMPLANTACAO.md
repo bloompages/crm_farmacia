@@ -36,8 +36,10 @@ Confira: abra `https://<dominio>/login`, entre como gerente e veja o aviso **"Im
 
 Em **Configurações › Farmácia e integrações**, o roteiro mostra o que falta:
 
-1. **Dados da farmácia:** razão social, CNPJ, e-mail de privacidade, endereço e telefone. A política de privacidade pública (`/privacidade`) é preenchida com eles na hora.
-2. **WhatsApp conectado:** cole a *identificação do número de telefone* e o *token permanente* e clique em **Testar conexão**.
+1. **Dados da farmácia:** nome fantasia, razão social, CNPJ, e-mail de privacidade, endereço e telefone. O **nome fantasia é o nome do sistema para a equipe**: aparece no menu, na tela de login e na aba do navegador. A política de privacidade pública (`/privacidade`) é preenchida com esses dados na hora.
+2. **WhatsApp conectado:** cole a *identificação do número de telefone*, a *identificação da conta do WhatsApp Business* (WABA ID, ao lado do Phone Number ID no painel da Meta) e o *token permanente*, e clique em **Testar conexão**. O teste:
+   - inscreve o app na conta do WhatsApp Business (`subscribed_apps`). **Sem essa inscrição a Meta só entrega os testes do painel, nunca as mensagens reais dos clientes**;
+   - mostra em português o que a Meta está bloqueando (forma de pagamento, verificação da empresa, perfil incompleto) e onde resolver.
 3. **Mensagens chegando no CRM:** copie a *URL de callback* e o *verificar token* da tela para a Meta (WhatsApp › Configuração › Webhooks), clique em *Verificar e salvar*, assine o campo `messages` e mande uma mensagem de teste para o número.
 4. **Template de reabertura:** nome do template aprovado na Meta.
 5. **Equipe:** crie os atendentes em *Equipe e LGPD*.
@@ -48,6 +50,12 @@ Em **Configurações › Farmácia e integrações**, o roteiro mostra o que fal
 - **Um número de telefone que vai ser só do CRM.** Se for o número atual do WhatsApp Business do celular, ele sai do app e passa a funcionar só pelo CRM (avise isso com clareza).
 - Acesso ao **Business Manager (Meta Business Suite)** da farmácia, ou alguém da farmácia disponível para criar e verificar a conta.
 - Documentos para a **verificação da empresa** na Meta (cartão CNPJ, comprovante de endereço). Sem verificação, o número fica limitado a poucas conversas por dia.
+- No **Meta Business Suite da farmácia**, antes de começar a atender:
+  - *Configurações › Informações da empresa:* razão social, país e site preenchidos;
+  - *Contas do WhatsApp › Pagamentos:* um cartão cadastrado;
+  - *Central de segurança:* verificação da empresa iniciada.
+
+  Sem esses três itens a farmácia **só consegue responder quem escreveu nas últimas 24h**: templates e mensagens iniciadas por ela ficam bloqueados. O **Testar conexão** lista o que ainda falta.
 
 ## 3. App da Meta: de quem é?
 

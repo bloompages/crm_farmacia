@@ -54,69 +54,94 @@ function traduzirErro(json) {
 }
 
 async function credenciais(canal) {
-  const { id, token } = await credenciaisMeta(canal);
+  const { id, token, wabaId } = await credenciaisMeta(canal);
   if (!id || !token) {
     throw new Error(`${canal === "WHATSAPP" ? "WhatsApp" : "Instagram"} não configurado: o gerente conecta em Configurações › Farmácia e integrações.`);
   }
-  return { id, token };
-}
-
-/**
- * Confere as credenciais direto na Meta, sem enviar mensagem. Devolve o rótulo que a
- * tela mostra (o número com o nome verificado, ou o @ do Instagram), ou lança Error legível.
- */
-export async function testarConexaoMeta(canal) {
-  const { id, token } = await credenciais(canal);
-  const campos = canal === "WHATSAPP" ? "display_phone_number,verified_name" : "username,name";
-  const r = await fetch(`${GRAPH}/${id}?fields=${campos}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
-  if (!r) throw new Error("Não foi possível falar com a Meta agora. Tente de novo em instantes.");
-  const json = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(traduzirErro(json));
-  if (canal === "WHATSAPP") {
-    const numero = [json.display_phone_number, json.verified_name].filter(Boolean).join(" · ") || id;
-    return `${numero} · ${await inscreverWaba(id, token)}`;
-  }
-  return json.username ? `@${json.username}` : json.name || id;
+  return { id, token, wabaId };
 }
 
 async function graph(caminho, token, opcoes = {}) {
   const r = await fetch(`${GRAPH}/${caminho}`, { ...opcoes, headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
-  if (!r) throw new Error("Não foi possível falar com a Meta agora.");
+  if (!r) throw new Error("Não foi possível falar com a Meta agora. Tente de novo em instantes.");
   const json = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(traduzirErro(json));
   return json;
 }
 
 /**
+ * Confere as credenciais direto na Meta, sem enviar mensagem. Devolve
+ * { rotulo, avisos }: o rótulo que a tela mostra (o número com o nome verificado, ou o @
+ * do Instagram) e, no WhatsApp, o que ainda impede a farmácia de atender. Lança Error
+ * legível só quando o número ou o token não funcionam.
+ */
+export async function testarConexaoMeta(canal) {
+  const { id, token, wabaId } = await credenciais(canal);
+  if (canal !== "WHATSAPP") {
+    const json = await graph(`${id}?fields=username,name`, token);
+    return { rotulo: json.username ? `@${json.username}` : json.name || id, avisos: [] };
+  }
+  const json = await graph(`${id}?fields=display_phone_number,verified_name,health_status`, token);
+  const rotulo = [json.display_phone_number, json.verified_name].filter(Boolean).join(" · ") || id;
+  const inscricao = await inscreverWaba(id, token, wabaId);
+  return {
+    rotulo: inscricao.ok ? `${rotulo} · recebendo mensagens` : rotulo,
+    avisos: [...(inscricao.ok ? [] : [inscricao.aviso]), ...avisosDeSaude(json.health_status)],
+  };
+}
+
+/**
  * Inscreve a conta de WhatsApp Business (WABA) dona do número no app. Sem isso a Meta
  * só entrega os testes do painel: as mensagens reais dos clientes nunca chegam ao webhook.
- * A WABA é descoberta pelo próprio token (debug_token), então o gerente não precisa
- * informar mais nenhum ID. Devolve o texto que vai no rótulo da tela; nunca lança, para
- * não esconder que o número em si está conectado.
+ * Usa a WABA informada na tela; sem ela, tenta descobrir pelo próprio token (debug_token),
+ * o que nem todo token permite. Nunca lança: devolve { ok } ou { ok: false, aviso }.
  */
-export async function inscreverWaba(phoneId, token) {
+export async function inscreverWaba(phoneId, token, wabaId) {
+  const falha = (motivo) => ({ ok: false, aviso: `Mensagens dos clientes não vão chegar: ${motivo}` });
   try {
-    const dbg = await graph(`debug_token?input_token=${encodeURIComponent(token)}`, token);
-    const escopos = dbg?.data?.granular_scopes ?? [];
-    const wabas = [...new Set(
-      escopos
-        .filter((s) => s.scope === "whatsapp_business_management" || s.scope === "whatsapp_business_messaging")
-        .flatMap((s) => s.target_ids ?? []),
-    )];
-    if (!wabas.length) return "⚠ não inscrito para receber mensagens: o token não dá acesso à conta de WhatsApp Business";
-
-    let waba = wabas[0];
-    if (wabas.length > 1) {
-      for (const w of wabas) {
-        const numeros = await graph(`${w}/phone_numbers?fields=id`, token).catch(() => null);
-        if (numeros?.data?.some((n) => n.id === phoneId)) { waba = w; break; }
+    let waba = wabaId;
+    if (waba) {
+      const numeros = await graph(`${waba}/phone_numbers?fields=id`, token);
+      if (!numeros?.data?.some((n) => n.id === phoneId)) {
+        return falha("este número não pertence à conta do WhatsApp Business informada. Confira os dois IDs no painel da Meta.");
       }
+    } else {
+      const dbg = await graph(`debug_token?input_token=${encodeURIComponent(token)}`, token);
+      const wabas = [...new Set(
+        (dbg?.data?.granular_scopes ?? [])
+          .filter((s) => s.scope === "whatsapp_business_management" || s.scope === "whatsapp_business_messaging")
+          .flatMap((s) => s.target_ids ?? []),
+      )];
+      for (const w of wabas) {
+        const numeros = wabas.length === 1 ? null : await graph(`${w}/phone_numbers?fields=id`, token).catch(() => null);
+        if (wabas.length === 1 || numeros?.data?.some((n) => n.id === phoneId)) { waba = w; break; }
+      }
+      if (!waba) return falha("preencha a Identificação da conta do WhatsApp Business (fica ao lado do Phone Number ID no painel da Meta) e teste de novo.");
     }
     await graph(`${waba}/subscribed_apps`, token, { method: "POST" });
-    return "inscrito para receber mensagens";
+    return { ok: true };
   } catch (e) {
-    return `⚠ não inscrito para receber mensagens: ${e.message}`;
+    return falha(`a Meta recusou a inscrição do app na conta (${e.message})`);
   }
+}
+
+/** Bloqueios que a Meta informa no health_status, traduzidos com o que a farmácia precisa fazer. */
+const BLOQUEIOS = {
+  141006: "Falta forma de pagamento na conta do WhatsApp Business. No Meta Business Suite: Configurações › Contas do WhatsApp › Pagamentos.",
+  141010: "A empresa ainda não foi verificada pela Meta. No Meta Business Suite: Configurações › Central de segurança › Verificação da empresa (pede cartão CNPJ e comprovante de endereço).",
+  131000: "Perfil da empresa incompleto na Meta (razão social, país e site). No Meta Business Suite: Configurações › Informações da empresa.",
+};
+
+export function avisosDeSaude(saude) {
+  if (!saude || saude.can_send_message === "AVAILABLE") return [];
+  const erros = (saude.entities ?? []).flatMap((e) => (e.can_send_message === "AVAILABLE" ? [] : e.errors ?? []));
+  const codigos = [...new Set(erros.map((e) => e.error_code))].filter((c) => !String(c).startsWith("138")); // 138xxx: chamadas de voz, não afeta mensagens
+  const textos = codigos.map((c) => BLOQUEIOS[c] ?? erros.find((e) => e.error_code === c)?.error_description ?? `Bloqueio ${c}`);
+  if (!textos.length) return [];
+  return [
+    "A Meta está bloqueando mensagens iniciadas pela farmácia (templates e conversas com mais de 24h sem resposta do cliente). Responder quem escreveu nas últimas 24h funciona normalmente. Para liberar:",
+    ...textos.map((t) => `• ${t}`),
+  ];
 }
 
 export const provedorMeta = {

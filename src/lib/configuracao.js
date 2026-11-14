@@ -57,6 +57,7 @@ export function credenciaisDe(cfg, canal) {
     return {
       id: cfg?.whatsappPhoneNumberId || env("WHATSAPP_PHONE_NUMBER_ID"),
       token: decifrar(cfg?.whatsappToken) || env("WHATSAPP_TOKEN"),
+      wabaId: cfg?.whatsappWabaId || env("WHATSAPP_WABA_ID"),
     };
   }
   return {
@@ -101,6 +102,21 @@ export function dadosFarmaciaDe(cfg) {
   };
 }
 
+/**
+ * Nome exibido no menu, no login e na aba do navegador: o nome fantasia que a farmácia
+ * cadastra na tela. NOME_PADRAO só aparece enquanto ele não foi preenchido.
+ */
+export const NOME_PADRAO = "CRM";
+
+export async function nomeExibicao() {
+  try {
+    const cfg = await obterConfiguracao();
+    return cfg.nomeFantasia || cfg.razaoSocial || NOME_PADRAO;
+  } catch {
+    return NOME_PADRAO; // banco fora do ar não pode derrubar o título da página
+  }
+}
+
 export const templateReaberturaDe = (cfg) => cfg?.whatsappTemplateReabertura || env("WHATSAPP_TEMPLATE_REABERTURA");
 
 const mascarar = (token) => (token ? `••••${token.slice(-4)}` : null);
@@ -118,6 +134,7 @@ export function configuracaoPublica(cfg) {
     emailPrivacidade: cfg.emailPrivacidade ?? "",
     telefone: cfg.telefone ?? "",
     whatsappPhoneNumberId: cfg.whatsappPhoneNumberId ?? "",
+    whatsappWabaId: cfg.whatsappWabaId ?? "",
     whatsappTemplateReabertura: cfg.whatsappTemplateReabertura ?? "",
     whatsappToken: mascarar(decifrar(cfg.whatsappToken)),
     whatsappTokenIlegivel: tokenIlegivel("whatsappToken"),
@@ -171,10 +188,15 @@ export function validarConfiguracao(entrada = {}) {
     dados.emailPrivacidade = v || null;
   }
 
-  for (const k of ["whatsappPhoneNumberId", "instagramAccountId"]) {
+  const NOMES_ID = {
+    whatsappPhoneNumberId: "Identificação do número de telefone",
+    whatsappWabaId: "Identificação da conta do WhatsApp Business",
+    instagramAccountId: "ID da conta do Instagram",
+  };
+  for (const [k, nome] of Object.entries(NOMES_ID)) {
     if (!tem(k)) continue;
     const v = texto(k).replace(/\s/g, "");
-    if (v && !/^\d{5,25}$/.test(v)) erros.push(`${k === "whatsappPhoneNumberId" ? "Identificação do número de telefone" : "ID da conta do Instagram"}: só números (copie do painel da Meta)`);
+    if (v && !/^\d{5,25}$/.test(v)) erros.push(`${nome}: só números (copie do painel da Meta)`);
     dados[k] = v || null;
   }
 
@@ -226,7 +248,7 @@ export async function salvarConfiguracao(entrada) {
   for (const k of TOKENS) if (gravar[k]) gravar[k] = cifrar(gravar[k]);
 
   // trocar o número, a conta ou o token invalida o último "Testar conexão"
-  if (alterados.includes("whatsappPhoneNumberId") || alterados.includes("whatsappToken")) Object.assign(gravar, { whatsappNumeroExibicao: null, whatsappTestadoEm: null });
+  if (["whatsappPhoneNumberId", "whatsappWabaId", "whatsappToken"].some((k) => alterados.includes(k))) Object.assign(gravar, { whatsappNumeroExibicao: null, whatsappTestadoEm: null });
   if (alterados.includes("instagramAccountId") || alterados.includes("instagramToken")) Object.assign(gravar, { instagramUsuario: null, instagramTestadoEm: null });
 
   if (!Object.keys(gravar).length) return { cfg: atual, alterados };
@@ -283,7 +305,7 @@ export async function etapasImplantacao() {
   const wa = credenciaisDe(cfg, "WHATSAPP");
   const etapas = [
     { id: "dados", titulo: "Dados da farmácia", feito: Boolean(f.nome && f.cnpj && f.email), dica: "Razão social, CNPJ e e-mail aparecem na política de privacidade." },
-    { id: "whatsapp", titulo: "WhatsApp conectado", feito: Boolean(temCredenciais(wa) && (cfg.whatsappTestadoEm || !cfg.whatsappPhoneNumberId)), dica: "Cole a identificação do número e o token, e clique em Testar conexão." },
+    { id: "whatsapp", titulo: "WhatsApp conectado", feito: Boolean(temCredenciais(wa) && (cfg.whatsappTestadoEm || !cfg.whatsappPhoneNumberId)), dica: "Cole a identificação do número, a da conta do WhatsApp Business e o token, e clique em Testar conexão." },
     { id: "webhook", titulo: "Mensagens chegando no CRM", feito: Boolean(webhookMeta), dica: "Cadastre a URL do webhook na Meta e mande uma mensagem de teste para o número." },
     { id: "template", titulo: "Template de reabertura", feito: Boolean(templateReaberturaDe(cfg)), dica: "Permite voltar a falar com o cliente depois de 24h sem resposta." },
     { id: "equipe", titulo: "Equipe cadastrada", feito: usuarios > 1, dica: "Crie um usuário para cada atendente em Equipe e LGPD." },

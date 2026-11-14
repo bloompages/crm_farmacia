@@ -1,12 +1,15 @@
 import "./globals.css";
 import Nav from "@/components/Nav";
 import { usuarioAtual } from "@/lib/usuario";
-import { obterConfiguracao } from "@/lib/configuracao";
+import { obterConfiguracao, nomeExibicao } from "@/lib/configuracao";
 
-export const metadata = {
-  title: "CRM Farmácia",
-  description: "CRM comercial para farmácias: leads, orçamentos e mensagens",
-};
+export async function generateMetadata() {
+  const nome = await nomeExibicao();
+  return {
+    title: { default: nome, template: `%s · ${nome}` },
+    description: "Atendimento e vendas: leads, orçamentos e mensagens",
+  };
+}
 
 export default async function RootLayout({ children }) {
   const usuario = await usuarioAtual(); // null só na tela de login e na política de privacidade
