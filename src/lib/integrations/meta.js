@@ -72,8 +72,51 @@ export async function testarConexaoMeta(canal) {
   if (!r) throw new Error("Não foi possível falar com a Meta agora. Tente de novo em instantes.");
   const json = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(traduzirErro(json));
-  if (canal === "WHATSAPP") return [json.display_phone_number, json.verified_name].filter(Boolean).join(" · ") || id;
+  if (canal === "WHATSAPP") {
+    const numero = [json.display_phone_number, json.verified_name].filter(Boolean).join(" · ") || id;
+    return `${numero} · ${await inscreverWaba(id, token)}`;
+  }
   return json.username ? `@${json.username}` : json.name || id;
+}
+
+async function graph(caminho, token, opcoes = {}) {
+  const r = await fetch(`${GRAPH}/${caminho}`, { ...opcoes, headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+  if (!r) throw new Error("Não foi possível falar com a Meta agora.");
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(traduzirErro(json));
+  return json;
+}
+
+/**
+ * Inscreve a conta de WhatsApp Business (WABA) dona do número no app. Sem isso a Meta
+ * só entrega os testes do painel: as mensagens reais dos clientes nunca chegam ao webhook.
+ * A WABA é descoberta pelo próprio token (debug_token), então o gerente não precisa
+ * informar mais nenhum ID. Devolve o texto que vai no rótulo da tela; nunca lança, para
+ * não esconder que o número em si está conectado.
+ */
+export async function inscreverWaba(phoneId, token) {
+  try {
+    const dbg = await graph(`debug_token?input_token=${encodeURIComponent(token)}`, token);
+    const escopos = dbg?.data?.granular_scopes ?? [];
+    const wabas = [...new Set(
+      escopos
+        .filter((s) => s.scope === "whatsapp_business_management" || s.scope === "whatsapp_business_messaging")
+        .flatMap((s) => s.target_ids ?? []),
+    )];
+    if (!wabas.length) return "⚠ não inscrito para receber mensagens: o token não dá acesso à conta de WhatsApp Business";
+
+    let waba = wabas[0];
+    if (wabas.length > 1) {
+      for (const w of wabas) {
+        const numeros = await graph(`${w}/phone_numbers?fields=id`, token).catch(() => null);
+        if (numeros?.data?.some((n) => n.id === phoneId)) { waba = w; break; }
+      }
+    }
+    await graph(`${waba}/subscribed_apps`, token, { method: "POST" });
+    return "inscrito para receber mensagens";
+  } catch (e) {
+    return `⚠ não inscrito para receber mensagens: ${e.message}`;
+  }
 }
 
 export const provedorMeta = {
