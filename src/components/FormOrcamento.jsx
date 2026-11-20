@@ -76,40 +76,40 @@ export default function FormOrcamento({ leads, produtos, leadPre, segmento }) {
 
         <div className="space-y-2">
           {itens.map((i) => (
-            <div key={i.key} className="grid grid-cols-12 items-end gap-2">
-              <div className="col-span-4">
+            <div key={i.key} className="grid grid-cols-2 items-end gap-2 rounded-lg border border-slate-100 p-2 sm:grid-cols-12 sm:border-0 sm:p-0">
+              <div className="col-span-2 sm:col-span-4">
                 <label className="label">Produto do catálogo</label>
                 <select className="input" value={i.produtoId} onChange={(e) => atualizar(i.key, "produtoId", e.target.value)}>
                   <option value="">— livre —</option>
                   {produtos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
               </div>
-              <div className="col-span-3">
+              <div className="col-span-2 sm:col-span-3">
                 <label className="label">Descrição</label>
                 <input className="input" value={i.descricao} onChange={(e) => atualizar(i.key, "descricao", e.target.value)} placeholder={segmento?.exemplos?.item ?? "Descrição do produto ou serviço"} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <label className="label">Qtd</label>
                 <input type="number" min="1" className="input" value={i.quantidade} onChange={(e) => atualizar(i.key, "quantidade", e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <label className="label">Unit. (R$)</label>
                 <input type="number" step="0.01" className="input" value={i.precoUnit} onChange={(e) => atualizar(i.key, "precoUnit", e.target.value)} />
               </div>
-              <div className="col-span-1">
+              <div className="col-span-2 sm:col-span-1">
                 <button
                   className="btn-ghost w-full px-0 text-rose-600"
                   onClick={() => setItens((a) => (a.length > 1 ? a.filter((x) => x.key !== i.key) : a))}
                   title="Remover"
                 >
-                  ✕
+                  ✕<span className="sm:hidden">Remover item</span>
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-4">
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-4">
           <div className="w-40">
             <label className="label">Desconto (R$)</label>
             <input type="number" step="0.01" className="input" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
@@ -123,7 +123,7 @@ export default function FormOrcamento({ leads, produtos, leadPre, segmento }) {
 
       {erro && <p className="text-sm text-rose-600">{erro}</p>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <button className="btn-ghost" disabled={!leadId || salvando} onClick={() => salvar("RASCUNHO")}>Salvar rascunho</button>
         <button className="btn-primary" disabled={!leadId || salvando} onClick={() => salvar("ENVIADO")}>
           {salvando ? "Salvando…" : "Salvar e marcar enviado"}

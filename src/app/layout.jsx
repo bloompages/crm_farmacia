@@ -11,15 +11,17 @@ export async function generateMetadata() {
   };
 }
 
+export const viewport = { width: "device-width", initialScale: 1, themeColor: "#ffffff" };
+
 export default async function RootLayout({ children }) {
   const usuario = await usuarioAtual(); // null só na tela de login e na política de privacidade
   const empresa = usuario ? (await obterConfiguracao()).nomeFantasia : null;
   return (
     <html lang="pt-BR">
       <body className="min-h-screen">
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen flex-col lg:flex-row">
           {usuario && <Nav usuario={usuario} empresa={empresa} />}
-          <main className="flex-1 min-w-0 p-6">{children}</main>
+          <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
         </div>
       </body>
     </html>

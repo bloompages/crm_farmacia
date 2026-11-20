@@ -79,6 +79,7 @@ export default async function Equipe({ searchParams }) {
               ))}
             </div>
           </div>
+          <div className="tabela-rolavel">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
               <tr>
@@ -109,6 +110,7 @@ export default async function Equipe({ searchParams }) {
               )}
             </tbody>
           </table>
+          </div>
         </section>
       )}
     </div>

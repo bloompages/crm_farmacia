@@ -107,17 +107,17 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
   return (
     <>
     <div className="card flex flex-wrap items-center gap-2 p-3">
-      <input className="input w-56" placeholder="Buscar nome ou telefone…" value={busca} onChange={(e) => setBusca(e.target.value)} />
-      <select className="input w-auto" value={responsavel} onChange={(e) => setResponsavel(e.target.value)} aria-label="Responsável">
+      <input className="input w-full sm:w-56" placeholder="Buscar nome ou telefone…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <select className="input min-w-[9rem] flex-1 sm:w-auto sm:flex-none" value={responsavel} onChange={(e) => setResponsavel(e.target.value)} aria-label="Responsável">
         <option value="">Todos os responsáveis</option>
         <option value="-">Sem responsável</option>
         {equipe.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
       </select>
-      <select className="input w-auto" value={periodo} onChange={(e) => setPeriodo(e.target.value)} aria-label="Período de entrada">
+      <select className="input min-w-[9rem] flex-1 sm:w-auto sm:flex-none" value={periodo} onChange={(e) => setPeriodo(e.target.value)} aria-label="Período de entrada">
         {PERIODOS.map((p) => <option key={p.id} value={p.id}>{p.rotulo}</option>)}
       </select>
       {etiquetas.length > 0 && (
-        <select className="input w-auto" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} aria-label="Etiqueta">
+        <select className="input min-w-[9rem] flex-1 sm:w-auto sm:flex-none" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} aria-label="Etiqueta">
           <option value="">Todas as etiquetas</option>
           {etiquetas.map((e) => <option key={e} value={e}># {e}</option>)}
         </select>
@@ -133,7 +133,7 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
       </div>
     </div>
     {erro && <p className="text-sm text-rose-600">{erro}</p>}
-    <div className="flex gap-3 overflow-x-auto pb-4">
+    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0">
       {ETAPAS.map((etapa) => {
         const daEtapa = visiveis.filter((l) => l.etapa === etapa.id);
         const valor = daEtapa.reduce((t, l) => t + valorDoCard(l), 0);
@@ -143,7 +143,7 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
             onDragOver={(e) => { e.preventDefault(); setSobre(etapa.id); }}
             onDragLeave={() => setSobre((s) => (s === etapa.id ? null : s))}
             onDrop={(e) => { e.preventDefault(); setSobre(null); if (arrastando) soltar(arrastando, etapa.id); }}
-            className={`w-72 shrink-0 rounded-xl border p-2 transition ${
+            className={`w-[82vw] max-w-72 shrink-0 snap-start rounded-xl border p-2 transition sm:w-72 ${
               sobre === etapa.id ? "border-emerald-400 bg-emerald-50/60" : "border-slate-200 bg-slate-50"
             }`}
           >
@@ -198,6 +198,16 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
                       </div>
                     </div>
                   </div>
+                  {/* telas de toque não têm arrastar-e-soltar: mover pela lista */}
+                  <select
+                    className="input mt-2 hidden py-1.5 text-sm pointer-coarse:block"
+                    value=""
+                    onChange={(e) => e.target.value && soltar(l.id, e.target.value)}
+                    aria-label={`Mover ${l.nome} para outra etapa`}
+                  >
+                    <option value="">Mover para…</option>
+                    {ETAPAS.filter((e) => e.id !== l.etapa).map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+                  </select>
                   {l.etapa === "ORCAMENTO" && l.valorAberto > 0 && (
                     <button
                       type="button"
@@ -223,9 +233,9 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
     </div>
 
     {perda && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div className="modal-fundo">
         <form
-          className="card w-full max-w-sm p-5"
+          className="modal-caixa max-w-sm"
           onSubmit={(e) => {
             e.preventDefault();
             mover(perda.leadId, { etapa: "PERDIDO", motivoPerda: motivo });
@@ -239,7 +249,7 @@ export default function Kanban({ leadsIniciais, equipe = [], segmento }) {
             <option value="">Selecione…</option>
             {motivosRejeicao(segmento?.saude).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
             <button type="button" className="btn-ghost" onClick={() => setPerda(null)}>Cancelar</button>
             <button className="btn-danger" disabled={!motivo}>Marcar como perdido</button>
           </div>

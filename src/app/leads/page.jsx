@@ -61,16 +61,16 @@ export default async function Leads({ searchParams }) {
       </header>
 
       <div className="card flex flex-wrap items-center gap-2 p-3">
-        <form className="flex gap-2">
+        <form className="flex w-full gap-2 sm:w-auto">
           {etapa && <input type="hidden" name="etapa" value={etapa} />}
           {origem && <input type="hidden" name="origem" value={origem} />}
           {meus && <input type="hidden" name="meus" value={meus} />}
           {etiqueta && <input type="hidden" name="etiqueta" value={etiqueta} />}
-          <input name="q" defaultValue={q ?? ""} className="input w-56" placeholder="Buscar nome ou telefone" />
+          <input name="q" defaultValue={q ?? ""} className="input min-w-0 flex-1 sm:w-56 sm:flex-none" placeholder="Buscar nome ou telefone" />
           <button className="btn-ghost">Buscar</button>
         </form>
         <Link href={filtro({ meus: meus ? "" : "1" })} className={`chip ${chipFiltro(!!meus)}`}>só os meus</Link>
-        <div className="ml-auto flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 lg:ml-auto">
           <Link href={filtro({ etapa: "" })} className={`chip ${chipFiltro(!etapa)}`}>todas etapas</Link>
           {ETAPAS.map((e) => (
             <Link key={e.id} href={filtro({ etapa: e.id })} className={`chip ${etapa === e.id ? e.cor : TOM.neutroClaro}`}>
@@ -98,22 +98,22 @@ export default async function Leads({ searchParams }) {
         )}
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
               <th className="px-4 py-2.5 font-medium">Lead</th>
-              <th className="px-4 py-2.5 font-medium">Origem</th>
+              <th className="hidden px-4 py-2.5 font-medium md:table-cell">Origem</th>
               <th className="px-4 py-2.5 font-medium">Etapa</th>
               <th className="px-4 py-2.5 font-medium">Score</th>
-              <th className="px-4 py-2.5 font-medium">Orçam.</th>
-              <th className="px-4 py-2.5 font-medium">Último contato</th>
+              <th className="hidden px-4 py-2.5 font-medium md:table-cell">Orçam.</th>
+              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Último contato</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {leads.map((l) => (
               <tr key={l.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2.5">
+                <td className="min-w-0 px-4 py-2.5">
                   <Link href={`/leads/${l.id}`} className="font-medium text-slate-800 hover:text-emerald-700">{l.nome}</Link>
                   <div className="text-xs text-slate-400">{formatarTelefone(l.telefone) ?? l.email ?? l.empresa ?? "—"}</div>
                   {l.etiquetas && (
@@ -122,11 +122,11 @@ export default async function Leads({ searchParams }) {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-slate-500">{l.origem.toLowerCase()}</td>
+                <td className="hidden px-4 py-2.5 text-slate-500 md:table-cell">{l.origem.toLowerCase()}</td>
                 <td className="px-4 py-2.5"><span className={`chip ${corEtapa(l.etapa)}`}>{labelEtapa(l.etapa)}</span></td>
                 <td className="px-4 py-2.5"><span className={`chip ${TEMP[l.temperatura]}`}>{l.score}</span></td>
-                <td className="px-4 py-2.5 text-slate-500">{l._count.orcamentos}</td>
-                <td className="px-4 py-2.5 text-slate-500">{dataCurta(l.ultimoContatoEm)}</td>
+                <td className="hidden px-4 py-2.5 text-slate-500 md:table-cell">{l._count.orcamentos}</td>
+                <td className="hidden whitespace-nowrap px-4 py-2.5 text-slate-500 sm:table-cell">{dataCurta(l.ultimoContatoEm)}</td>
               </tr>
             ))}
             {leads.length === 0 && (

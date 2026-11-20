@@ -35,8 +35,8 @@ export default function NovoLeadDialog({ etiquetasEmUso = [], segmento }) {
   if (!aberto) return <button className="btn-primary" onClick={() => setAberto(true)}>+ Novo lead</button>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <form onSubmit={salvar} className="card w-full max-w-lg p-5">
+    <div className="modal-fundo">
+      <form onSubmit={salvar} className="modal-caixa max-w-lg">
         <h2 className="mb-4 text-lg font-semibold">Novo lead</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -100,7 +100,7 @@ export default function NovoLeadDialog({ etiquetasEmUso = [], segmento }) {
             {duplicado && <> — <Link href={`/leads/${duplicado}`} className="underline">abrir ficha</Link></>}
           </p>
         )}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={() => setAberto(false)}>Cancelar</button>
           <button className="btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar lead"}</button>
         </div>

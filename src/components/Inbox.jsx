@@ -35,6 +35,8 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
   const [conversas, setConversas] = useState(conversasIniciais);
   const [sinc, setSinc] = useState({ estado: "ok", ultimaEm: Date.now(), erro: null, proximaEm: null, info: sincronizacaoInicial });
   const [ativa, setAtiva] = useState(selecionadaId ?? conversasIniciais[0]?.id ?? null);
+  // celular/tablet: mostra a lista OU a conversa; no desktop (lg) as duas ficam lado a lado
+  const [conversaNaTela, setConversaNaTela] = useState(!!selecionadaId);
   // conversa aberta por link (?c=) que já foi resolvida continua visível
   const [aba, setAba] = useState(() => (fechada(conversasIniciais.find((c) => c.id === selecionadaId) ?? {}) ? "TODAS" : "ABERTAS"));
   const [soMinhas, setSoMinhas] = useState(false);
@@ -166,11 +168,11 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-3">
+    <div className="flex h-[calc(100dvh-9rem)] min-h-[26rem] flex-col gap-3 sm:h-[calc(100dvh-12rem)] lg:h-[calc(100dvh-8rem)]">
       <BarraSincronizacao sinc={sinc} agora={agora} aoAtualizar={atualizar} />
 
       <div className="flex min-h-0 flex-1 gap-4">
-        <aside className="card flex w-80 shrink-0 flex-col overflow-hidden">
+        <aside className={`card ${conversaNaTela ? "hidden" : "flex"} w-full min-w-0 shrink-0 flex-col overflow-hidden lg:flex lg:w-80`}>
           <div className="space-y-2 border-b border-slate-100 p-2">
             <input
               className="input py-1.5"
@@ -214,7 +216,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
               return (
                 <button
                   key={c.id}
-                  onClick={() => setAtiva(c.id)}
+                  onClick={() => { setAtiva(c.id); setConversaNaTela(true); }}
                   className={`w-full border-b border-slate-100 px-3 py-2.5 text-left hover:bg-slate-50 ${ativa === c.id ? "bg-emerald-50/60" : ""}`}
                 >
                   <div className="flex items-center gap-2">
@@ -253,9 +255,12 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
           </div>
         </aside>
 
-        <section className="card flex min-w-0 flex-1 flex-col overflow-hidden">
+        <section className={`card ${conversaNaTela ? "flex" : "hidden"} min-w-0 flex-1 flex-col overflow-hidden lg:flex`}>
           {!conversa ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Selecione uma conversa</div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-slate-400">
+              Selecione uma conversa
+              <button type="button" onClick={() => setConversaNaTela(false)} className="btn-ghost lg:hidden">← Conversas</button>
+            </div>
           ) : (
             <Conversa
               key={conversa.id}
@@ -271,6 +276,7 @@ export default function Inbox({ conversasIniciais, sincronizacaoInicial, selecio
               aoMudarStatus={aoMudarStatus}
               mensagensRapidas={mensagensRapidas}
               etiquetasEmUso={etiquetasEmUso}
+              aoVoltar={() => setConversaNaTela(false)}
             />
           )}
         </section>
@@ -336,7 +342,7 @@ function BarraSincronizacao({ sinc, agora, aoAtualizar }) {
 
 /* ====================================================================== */
 
-function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnteriores, agora, templateReabertura, aoEnviar, aoMudarLead, aoMudarStatus, mensagensRapidas, etiquetasEmUso }) {
+function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnteriores, agora, templateReabertura, aoEnviar, aoMudarLead, aoMudarStatus, mensagensRapidas, etiquetasEmUso, aoVoltar }) {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState(null);
@@ -501,9 +507,12 @@ function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnterior
 
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <div className="min-w-0">
-          <div className="truncate font-medium">{conversa.nomeExibicao}</div>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:px-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={aoVoltar} className="-ml-1 shrink-0 rounded-lg px-1.5 py-1 text-sm text-emerald-700 hover:bg-slate-100 lg:hidden" aria-label="Voltar para a lista de conversas">←</button>
+            <div className="truncate font-medium">{conversa.nomeExibicao}</div>
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             {fechada(conversa) && <span className={`chip ${TOM.neutro}`}>✓ resolvida</span>}
             <span className="inline-flex items-center gap-1">
@@ -589,15 +598,15 @@ function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnterior
           )}
         </div>
       </header>
-      {erroAprovar && <div className="aviso aviso-negativo mx-4 mt-3"><b>Não foi possível aprovar:</b> {erroAprovar}</div>}
+      {erroAprovar && <div className="aviso aviso-negativo mx-3 mt-3 sm:mx-4"><b>Não foi possível aprovar:</b> {erroAprovar}</div>}
       {conversa.leadId && !jaAprovado && total.itens.length > 0 && valorEditado === null && (
-        <div className="aviso aviso-neutro mx-4 mt-3">
+        <div className="aviso aviso-neutro mx-3 mt-3 sm:mx-4">
           Valor do botão calculado a partir de {total.itens.length === 1 ? "1 linha" : `${total.itens.length} linhas`} com "Total" na conversa
           {total.itens.length > 1 && <> (soma: {total.itens.map((i) => `R$ ${formatarValorBR(i.valor)}`).join(" + ")})</>}. Use ✎ para corrigir.
         </div>
       )}
 
-      <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
+      <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-3 sm:p-4">
         {temMais && (
           <div className="text-center">
             <button type="button" onClick={aoCarregarAnteriores} className="chip border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
@@ -612,7 +621,7 @@ function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnterior
         <div ref={fim} />
       </div>
 
-      <form onSubmit={enviarTexto} className="space-y-2 border-t border-slate-100 p-3">
+      <form onSubmit={enviarTexto} className="space-y-2 border-t border-slate-100 p-2 sm:p-3">
         {!janela.aberta && whatsapp && (
           <div className="aviso aviso-atencao flex flex-wrap items-center gap-2">
             <span>
@@ -677,7 +686,7 @@ function Conversa({ conversa, mensagens, temMais, carregando, aoCarregarAnterior
             {enviando ? "Enviando…" : "Enviar"}
           </button>
         </div>
-        <p className="text-[11px] text-slate-400">
+        <p className="hidden text-[11px] text-slate-400 sm:block">
           Parágrafos e quebras de linha são preservados. Formatação: *negrito*, _itálico_, ~riscado~.
         </p>
       </form>
@@ -718,7 +727,7 @@ function Balao({ m, aoReenviar, enviando }) {
   return (
     <div className={`flex ${saida ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+        className={`min-w-0 max-w-[88%] rounded-2xl px-3 py-2 text-sm shadow-sm sm:max-w-[75%] ${
           falhou ? "border border-rose-300 bg-rose-50 text-slate-800" : saida ? "bg-emerald-600 text-white" : "bg-white text-slate-800"
         }`}
       >
@@ -755,12 +764,12 @@ function Anexo({ m, visual, saida }) {
   if (visual === "imagem") {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="mb-1 block">
-        <img src={url} alt={m.midiaNome ?? "imagem recebida"} className="max-h-72 rounded-lg object-contain" loading="lazy" />
+        <img src={url} alt={m.midiaNome ?? "imagem recebida"} className="max-h-72 max-w-full rounded-lg object-contain" loading="lazy" />
       </a>
     );
   }
   if (visual === "audio") return <audio controls preload="none" src={url} className="mb-1 max-w-full" />;
-  if (visual === "video") return <video controls preload="metadata" src={url} className="mb-1 max-h-72 rounded-lg" />;
+  if (visual === "video") return <video controls preload="metadata" src={url} className="mb-1 max-h-72 max-w-full rounded-lg" />;
   if (visual === "mapa") {
     return (
       <a href={m.midiaUrl} target="_blank" rel="noopener noreferrer" className={`mb-1 block text-xs font-medium underline ${classeLink}`}>

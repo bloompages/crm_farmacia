@@ -69,7 +69,7 @@ export default async function Relatorios({ searchParams }) {
           <h2 className="mb-3 text-sm font-semibold">Para quem estamos perdendo</h2>
           <ul className="divide-y divide-slate-100 text-sm">
             {r.porConcorrente.map((c) => (
-              <li key={c.nome} className="flex items-center justify-between py-2">
+              <li key={c.nome} className="flex flex-wrap items-center justify-between gap-x-3 py-2">
                 <span className="text-slate-700">{c.nome}</span>
                 <span className="text-slate-500">{c.quantidade} orç. · <span className="font-medium text-rose-600">{brl(c.valor)}</span></span>
               </li>
@@ -80,6 +80,7 @@ export default async function Relatorios({ searchParams }) {
 
       <section className="card overflow-hidden">
         <h2 className="border-b border-slate-100 px-4 py-3 text-sm font-semibold">Rejeições detalhadas</h2>
+        <div className="tabela-rolavel">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
@@ -102,7 +103,7 @@ export default async function Relatorios({ searchParams }) {
                   <Link href={`/leads/${o.lead.id}`} className="text-slate-700 hover:text-emerald-700">{o.lead.nome}</Link>
                 </td>
                 <td className="px-4 py-2.5 text-slate-500">{o.lead.origem.toLowerCase()}</td>
-                <td className="px-4 py-2.5 font-medium text-rose-600">{brl(o.total)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 font-medium text-rose-600">{brl(o.total)}</td>
                 <td className="px-4 py-2.5 text-slate-600">{labelMotivo(o.motivoRejeicao)}</td>
                 <td className="px-4 py-2.5 text-slate-500">
                   {o.concorrente ?? "—"}{o.precoConcorrente ? ` (${brl(o.precoConcorrente)})` : ""}
@@ -115,6 +116,7 @@ export default async function Relatorios({ searchParams }) {
             )}
           </tbody>
         </table>
+        </div>
       </section>
     </div>
   );

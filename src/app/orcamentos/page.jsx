@@ -40,7 +40,7 @@ export default async function Orcamentos({ searchParams }) {
         ))}
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card tabela-rolavel">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
@@ -63,12 +63,12 @@ export default async function Orcamentos({ searchParams }) {
                   <Link href={`/leads/${o.leadId}`} className="text-slate-700 hover:text-emerald-700">{o.lead.nome}</Link>
                 </td>
                 <td className="px-4 py-2.5 text-slate-500">{o._count.itens}</td>
-                <td className="px-4 py-2.5 font-medium">{brl(o.total)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 font-medium">{brl(o.total)}</td>
                 <td className="px-4 py-2.5"><span className={`chip ${CORES[o.status]}`}>{o.status.toLowerCase()}</span></td>
                 <td className="px-4 py-2.5 text-slate-500">
                   {o.status === "REJEITADO" ? labelMotivo(o.motivoRejeicao) : "—"}
                 </td>
-                <td className="px-4 py-2.5 text-slate-500">{dataCurta(o.createdAt)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-slate-500">{dataCurta(o.createdAt)}</td>
               </tr>
             ))}
             {orcamentos.length === 0 && (

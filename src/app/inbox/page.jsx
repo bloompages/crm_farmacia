@@ -23,7 +23,7 @@ export default async function InboxPage({ searchParams }) {
     <div className="space-y-4">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Mensagens</h1>
-        <p className="text-sm text-slate-500">
+        <p className="hidden text-sm text-slate-500 sm:block">
           WhatsApp e Instagram no mesmo lugar — cada contato novo vira lead automaticamente. Nenhuma conversa é escondida.
         </p>
       </header>

@@ -13,7 +13,8 @@ body { background: var(--cor-fundo); color: var(--cor-tinta); }
   .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50; }
   .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50; }
   .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50; }
-  .input { @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100; }
+  /* 16px no celular: abaixo disso o iPhone dá zoom na página ao focar o campo. */
+  .input { @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:text-sm; }
   .label { @apply block text-xs font-medium text-slate-500 mb-1; }
   .chip { @apply inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap; }
 
@@ -23,6 +24,14 @@ body { background: var(--cor-fundo); color: var(--cor-tinta); }
   .aviso-atencao { @apply border-amber-200 bg-amber-50 text-amber-800; }
   .aviso-negativo { @apply border-rose-200 bg-rose-50 text-rose-800; }
   .aviso-marca { @apply border-emerald-200 bg-emerald-50 text-emerald-800; }
+
+  /* Modais: fundo escuro + caixa que rola por dentro quando não cabe na tela (celular deitado, formulários longos). */
+  .modal-fundo { @apply fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4; }
+  .modal-caixa { @apply rounded-xl border border-slate-200 bg-white max-h-[92dvh] w-full overflow-y-auto rounded-b-none p-5 sm:max-h-[90dvh] sm:rounded-b-xl; }
+
+  /* Tabelas largas rolam na horizontal dentro do cartão em vez de estourar a página. */
+  .tabela-rolavel { @apply overflow-x-auto; }
+  .tabela-rolavel > table { @apply min-w-[36rem]; }
 }
 
 /* Corpo de mensagem: respeita parágrafos e quebras de linha do WhatsApp. */

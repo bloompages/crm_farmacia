@@ -101,7 +101,7 @@ export default function GestaoEquipe({ usuarios, usuarioId }) {
               </div>
             </div>
             <select
-              className="input w-36 py-1"
+              className="input w-auto py-1"
               value={u.papel}
               disabled={ocupado}
               onChange={(e) => chamar(`/api/usuarios/${u.id}`, "PATCH", { papel: e.target.value })}

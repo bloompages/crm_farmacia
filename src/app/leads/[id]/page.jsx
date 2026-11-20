@@ -44,9 +44,9 @@ export default async function LeadDetalhe({ params }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <Link href="/leads" className="text-xs text-slate-400 hover:text-slate-600">← Leads</Link>
-          <h1 className="text-2xl font-semibold tracking-tight">{lead.nome}</h1>
+          <h1 className="break-words text-2xl font-semibold tracking-tight">{lead.nome}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <span className={`chip ${corEtapa(lead.etapa)}`}>{labelEtapa(lead.etapa)}</span>
             <span className="chip border-slate-200 bg-white">{lead.origem.toLowerCase()}</span>
@@ -63,7 +63,7 @@ export default async function LeadDetalhe({ params }) {
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {lead.conversas[0] && (
             <Link href={`/inbox?c=${lead.conversas[0].id}`} className="btn-ghost">Abrir conversa</Link>
           )}
@@ -73,7 +73,7 @@ export default async function LeadDetalhe({ params }) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="card p-3">
               <div className="text-xs text-slate-400">Ganho</div>
               <div className="text-lg font-semibold text-emerald-600">{brl(ganho)}</div>
@@ -82,7 +82,7 @@ export default async function LeadDetalhe({ params }) {
               <div className="text-xs text-slate-400">Perdido</div>
               <div className="text-lg font-semibold text-rose-600">{brl(perdido)}</div>
             </div>
-            <div className="card p-3">
+            <div className="card col-span-2 p-3 sm:col-span-1">
               <div className="text-xs text-slate-400">Primeiro contato</div>
               <div className="text-lg font-semibold">{dataCurta(lead.primeiroContatoEm)}</div>
             </div>

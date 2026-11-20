@@ -166,7 +166,7 @@ function Barras({ linhas, max, dica }) {
           onMouseLeave={() => setAtivo(null)}
         >
           <div className="flex items-center gap-3">
-            <span className="w-32 shrink-0 truncate text-xs" style={{ color: COR.secundario }} title={l.label}>
+            <span className="w-24 shrink-0 truncate text-xs sm:w-32" style={{ color: COR.secundario }} title={l.label}>
               {l.label}
             </span>
             <span className="relative h-3 flex-1 rounded-sm" style={{ background: COR.trilha }}>
@@ -175,12 +175,12 @@ function Barras({ linhas, max, dica }) {
                 style={{ width: `${Math.max(1.5, (l.valor / max) * 100)}%`, background: l.cor }}
               />
             </span>
-            <span className="w-28 shrink-0 text-right text-xs font-medium" style={{ color: COR.tinta, fontVariantNumeric: "tabular-nums" }}>
+            <span className="w-20 shrink-0 text-right text-xs font-medium sm:w-28" style={{ color: COR.tinta, fontVariantNumeric: "tabular-nums" }}>
               {l.rotuloValor}
             </span>
           </div>
           {ativo === i && dica && (
-            <div className="absolute right-0 top-6 z-10 w-64 rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-lg">
+            <div className="absolute right-0 top-6 z-10 w-64 max-w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-lg">
               {dica(l)}
             </div>
           )}

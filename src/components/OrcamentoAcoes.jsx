@@ -38,8 +38,8 @@ export default function OrcamentoAcoes({ orcamento, compacto = false, segmento }
       </div>
 
       {dialogo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="card w-full max-w-md p-5">
+        <div className="modal-fundo">
+          <div className="modal-caixa max-w-md">
             <h3 className="text-lg font-semibold">Registrar rejeição</h3>
             <p className="mt-1 text-sm text-slate-500">
               Orçamento #{orcamento.numero} · {brl(orcamento.total)}. O motivo alimenta o relatório de perdas.
@@ -60,7 +60,7 @@ export default function OrcamentoAcoes({ orcamento, compacto = false, segmento }
               </div>
 
               {["PRECO", "CONCORRENCIA"].includes(motivo) && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <div>
                     <label className="label">Concorrente</label>
                     <input className="input" value={concorrente} onChange={(e) => setConcorrente(e.target.value)} placeholder="Drogaria X" />
@@ -78,7 +78,7 @@ export default function OrcamentoAcoes({ orcamento, compacto = false, segmento }
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button className="btn-ghost" onClick={() => setDialogo(false)}>Cancelar</button>
               <button
                 className="btn-danger"

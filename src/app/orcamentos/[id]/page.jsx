@@ -31,7 +31,7 @@ export default async function OrcamentoDetalhe({ params }) {
         </p>
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
@@ -46,8 +46,8 @@ export default async function OrcamentoDetalhe({ params }) {
               <tr key={i.id}>
                 <td className="px-4 py-2.5">{i.descricao}</td>
                 <td className="px-4 py-2.5 text-slate-500">{i.quantidade}</td>
-                <td className="px-4 py-2.5 text-slate-500">{brl(i.precoUnit)}</td>
-                <td className="px-4 py-2.5 text-right font-medium">{brl(i.subtotal)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-slate-500">{brl(i.precoUnit)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium">{brl(i.subtotal)}</td>
               </tr>
             ))}
           </tbody>

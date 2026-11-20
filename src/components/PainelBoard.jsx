@@ -94,8 +94,9 @@ export default function PainelBoard({ cartoes, layoutPadrao }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        <span>Arraste os cartões pelo título para reorganizar o painel.</span>
-        <span className="ml-auto flex items-center gap-1">
+        <span className="hidden sm:inline pointer-coarse:hidden">Arraste os cartões pelo título para reorganizar o painel.</span>
+        {/* o número de listas só tem efeito a partir de telas largas (lg) */}
+        <span className="ml-auto hidden items-center gap-1 lg:flex">
           <span className="mr-1">listas:</span>
           {OPCOES_COLUNAS.map((n) => (
             <button key={n} onClick={() => mudarQtdColunas(n)} className={`chip ${chipFiltro(colunas.length === n)}`}>{n}</button>
@@ -104,7 +105,7 @@ export default function PainelBoard({ cartoes, layoutPadrao }) {
         </span>
       </div>
 
-      <div className={`grid gap-3 ${grade}`}>
+      <div className={`grid gap-3 md:grid-cols-2 ${grade}`}>
         {colunas.map((ids, ci) => (
           <div
             key={ci}
@@ -142,8 +143,8 @@ export default function PainelBoard({ cartoes, layoutPadrao }) {
                     }}
                     className={`card overflow-hidden transition ${arrastando === id ? "opacity-40" : ""}`}
                   >
-                    <header className="flex cursor-grab items-start gap-2 px-4 pt-3 pb-2 active:cursor-grabbing select-none">
-                      <span className="mt-0.5 text-slate-300" aria-hidden>⠿</span>
+                    <header className="flex cursor-grab items-start gap-2 px-4 pt-3 pb-2 select-none active:cursor-grabbing">
+                      <span className="mt-0.5 text-slate-300 pointer-coarse:hidden" aria-hidden>⠿</span>
                       <div className="min-w-0 flex-1">
                         <h2 className="text-sm font-semibold text-slate-900">{c.titulo}</h2>
                         {c.descricao && !recolhido && <p className="text-xs text-slate-400">{c.descricao}</p>}

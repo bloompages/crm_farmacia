@@ -42,7 +42,7 @@ export default async function Pipeline() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Funil de vendas</h1>
         <p className="text-sm text-slate-500">
-          {leads.length} negócio(s) · arraste os cards para mudar a etapa; em "Orçamento enviado", confirme a venda direto no card.
+          {leads.length} negócio(s) · <span className="pointer-coarse:hidden">arraste os cards</span><span className="hidden pointer-coarse:inline">use "Mover para…" nos cards</span> para mudar a etapa; em "Orçamento enviado", confirme a venda direto no card.
         </p>
       </header>
       <Kanban leadsIniciais={dados} equipe={equipe} segmento={segmento} />
